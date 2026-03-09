@@ -895,11 +895,13 @@
 // ─── 날짜 설정 ───
 const today = new Date();
 const dateStr = today.toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric', weekday:'short' });
-document.getElementById('headerDate').textContent = dateStr;
+
+try { document.getElementById('headerDate').textContent = dateStr; } catch(e) {}
 
 const dateInput = document.getElementById('startDate');
 dateInput.value = today.toISOString().split('T')[0];
-document.getElementById('autoDate').textContent = '자동 입력: ' + dateStr;
+
+try { document.getElementById('autoDate').textContent = '자동 입력: ' + dateStr; } catch(e) {}
 
 // ─── 오프라인 감지 ───
 function updateOnlineStatus() {
@@ -1231,62 +1233,6 @@ function savePDFFromRecord(index) {
     document.body.removeChild(container);
   }).catch(() => {
     document.body.removeChild(container);
-    alert('PDF 생성 중 오류가 발생했습니다');
-  });
-}
-
-// ─── PDF 저장 (폼용 — 미사용) ───
-function savePDF() {}
-  const customerName = document.getElementById('customerName').value.trim();
-  const siteName = document.getElementById('siteName').value.trim();
-  const startDate = document.getElementById('startDate').value;
-
-  if (!customerName || !siteName || !startDate) {
-    alert('PDF 생성 전 고객명, 현장명, 착공일을 입력해 주세요');
-    return;
-  }
-
-  // 내부용 섹션 임시 숨김 (visibility — 자리 유지, 내용 유지)
-  const internalSection = document.querySelector('.internal-only');
-  internalSection.style.visibility = 'hidden';
-  internalSection.style.height = '0';
-  internalSection.style.overflow = 'hidden';
-  internalSection.style.margin = '0';
-  internalSection.style.padding = '0';
-
-  // 저장/PDF 버튼도 숨김
-  document.getElementById('saveBtn').style.visibility = 'hidden';
-  document.getElementById('pdfBtn').style.visibility = 'hidden';
-
-  const element = document.getElementById('tab-form');
-  const filename = startDate.replace(/-/g,'').slice(2) + '_' + siteName + '_작업확인서.pdf';
-
-  const opt = {
-    margin: [10, 10, 10, 10],
-    filename: filename,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: 'avoid-all' }
-  };
-
-  html2pdf().set(opt).from(element).save().then(() => {
-    // 원상복구
-    internalSection.style.visibility = '';
-    internalSection.style.height = '';
-    internalSection.style.overflow = '';
-    internalSection.style.margin = '';
-    internalSection.style.padding = '';
-    document.getElementById('saveBtn').style.visibility = '';
-    document.getElementById('pdfBtn').style.visibility = '';
-  }).catch(() => {
-    internalSection.style.visibility = '';
-    internalSection.style.height = '';
-    internalSection.style.overflow = '';
-    internalSection.style.margin = '';
-    internalSection.style.padding = '';
-    document.getElementById('saveBtn').style.visibility = '';
-    document.getElementById('pdfBtn').style.visibility = '';
     alert('PDF 생성 중 오류가 발생했습니다');
   });
 }
