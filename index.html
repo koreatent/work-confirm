@@ -721,8 +721,39 @@
       <div class="section-title">작업 내용</div>
 
       <div class="field">
+        <label>공사 유형 <span class="req">*</span></label>
+        <select id="workType">
+          <option value="">선택하세요</option>
+          <option value="철골천막">철골천막</option>
+          <option value="어닝">어닝</option>
+          <option value="바람막이">바람막이</option>
+          <option value="차호로">차호로</option>
+          <option value="인테리어천막">인테리어천막</option>
+          <option value="앵글(무볼트)">앵글(무볼트)</option>
+          <option value="몽골텐트">몽골텐트</option>
+          <option value="판넬">판넬</option>
+        </select>
+      </div>
+
+      <div class="field">
         <label>시공 내용 <span class="req">*</span></label>
         <textarea id="workContent" rows="4" placeholder="예: 어닝 2개 설치 + 바람막이 공사&#10;전동어닝 (길이 5000, 돌출 2000)&#10;투명원단 바람막이 설치"></textarea>
+      </div>
+
+      <div style="display:flex; gap:12px;">
+        <div class="field" style="flex:1;">
+          <label>시공 기간 (일)</label>
+          <input type="number" id="workDays" placeholder="예: 1" min="0.5" step="0.5" autocomplete="off">
+        </div>
+        <div class="field" style="flex:1;">
+          <label>난이도</label>
+          <select id="difficulty">
+            <option value="">선택</option>
+            <option value="보통">보통</option>
+            <option value="어려움">어려움</option>
+            <option value="매우 어려움">매우 어려움</option>
+          </select>
+        </div>
       </div>
 
       <div class="field">
@@ -1019,13 +1050,24 @@ function saveRecord() {
     return;
   }
 
+  const savedAt = new Date();
+  const savedAtDisplay = savedAt.getFullYear() + '.' +
+    String(savedAt.getMonth()+1).padStart(2,'0') + '.' +
+    String(savedAt.getDate()).padStart(2,'0') + ' ' +
+    String(savedAt.getHours()).padStart(2,'0') + ':' +
+    String(savedAt.getMinutes()).padStart(2,'0');
+
   const record = {
     id: 'TNS-' + Date.now(),
-    savedAt: new Date().toISOString(),
+    savedAt: savedAt.toISOString(),
+    savedAtDisplay,
     customerName,
     siteName,
     siteAddress: document.getElementById('siteAddress').value.trim(),
     startDate,
+    workType: document.getElementById('workType').value,
+    workDays: document.getElementById('workDays').value.trim(),
+    difficulty: document.getElementById('difficulty').value,
     workContent,
     amount: document.getElementById('amount').value.trim(),
     specialRequest: document.getElementById('specialRequest').value.trim(),
@@ -1035,6 +1077,7 @@ function saveRecord() {
       electricSign: document.getElementById('check3').checked,
       accessRoute: document.getElementById('check4').checked,
     },
+    isNonstandard: document.getElementById('isNonstandard').checked,
     customerType: document.querySelector('input[name="customerType"]:checked').value,
     signatureData: hasSigned ? canvas.toDataURL('image/png') : null,
     synced: false,
@@ -1064,7 +1107,10 @@ function resetForm() {
   document.getElementById('customerName').value = '';
   document.getElementById('siteName').value = '';
   document.getElementById('siteAddress').value = '';
+  document.getElementById('workType').value = '';
   document.getElementById('workContent').value = '';
+  document.getElementById('workDays').value = '';
+  document.getElementById('difficulty').value = '';
   document.getElementById('amount').value = '';
   document.getElementById('specialRequest').value = '';
   document.getElementById('check1').checked = false;
@@ -1093,7 +1139,7 @@ function loadRecords() {
   }
 
   list.innerHTML = records.map((r, i) => {
-    const date = new Date(r.savedAt).toLocaleDateString('ko-KR', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+    const displayTime = r.savedAtDisplay || new Date(r.savedAt).toLocaleDateString('ko-KR', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
     const badge = r.synced
       ? '<span class="record-badge badge-sync">노션 동기화됨</span>'
       : '<span class="record-badge badge-signed">서명완료</span>';
@@ -1114,7 +1160,7 @@ function loadRecords() {
         <div class="record-item-header">
           <div class="record-info">
             <h4>${r.siteName} · ${r.customerName}</h4>
-            <p>${r.startDate} 착공 · 저장: ${date}</p>
+            <p>${r.startDate} 착공 · ${r.workType || '-'} · 저장: ${displayTime}</p>
           </div>
           <div style="display:flex;align-items:center;gap:8px;">
             ${badge}
@@ -1126,6 +1172,9 @@ function loadRecords() {
           <div class="record-detail-row"><span class="record-detail-label">고객명</span><span class="record-detail-value">${r.customerName || '-'}</span></div>
           <div class="record-detail-row"><span class="record-detail-label">현장 주소</span><span class="record-detail-value">${r.siteAddress || '-'}</span></div>
           <div class="record-detail-row"><span class="record-detail-label">착공일</span><span class="record-detail-value">${r.startDate || '-'}</span></div>
+          <div class="record-detail-row"><span class="record-detail-label">공사 유형</span><span class="record-detail-value">${r.workType || '-'}</span></div>
+          <div class="record-detail-row"><span class="record-detail-label">시공 기간</span><span class="record-detail-value">${r.workDays ? r.workDays + '일' : '-'}</span></div>
+          <div class="record-detail-row"><span class="record-detail-label">난이도</span><span class="record-detail-value">${r.difficulty || '-'}</span></div>
           <div class="record-detail-row"><span class="record-detail-label">시공 내용</span><span class="record-detail-value">${r.workContent || '-'}</span></div>
           <div class="record-detail-row"><span class="record-detail-label">금액</span><span class="record-detail-value">${r.amount ? r.amount + '만원' : '-'}</span></div>
           <div class="record-detail-row"><span class="record-detail-label">특이사항</span><span class="record-detail-value">${r.specialRequest || '-'}</span></div>
@@ -1184,6 +1233,7 @@ function savePDFFromRecord(index) {
         <tr><td style="padding:8px;border:1px solid #ddd;background:#f9f9f9;font-size:12px;font-weight:600;">현장명</td><td style="padding:8px;border:1px solid #ddd;font-size:13px;">${r.siteName}</td></tr>
         <tr><td style="padding:8px;border:1px solid #ddd;background:#f9f9f9;font-size:12px;font-weight:600;">현장 주소</td><td style="padding:8px;border:1px solid #ddd;font-size:13px;">${r.siteAddress || '-'}</td></tr>
         <tr><td style="padding:8px;border:1px solid #ddd;background:#f9f9f9;font-size:12px;font-weight:600;">착공일</td><td style="padding:8px;border:1px solid #ddd;font-size:13px;">${r.startDate}</td></tr>
+        <tr><td style="padding:8px;border:1px solid #ddd;background:#f9f9f9;font-size:12px;font-weight:600;">공사 유형</td><td style="padding:8px;border:1px solid #ddd;font-size:13px;">${r.workType || '-'}</td></tr>
         <tr><td style="padding:8px;border:1px solid #ddd;background:#f9f9f9;font-size:12px;font-weight:600;">시공 내용</td><td style="padding:8px;border:1px solid #ddd;font-size:13px;white-space:pre-wrap;">${r.workContent}</td></tr>
         <tr><td style="padding:8px;border:1px solid #ddd;background:#f9f9f9;font-size:12px;font-weight:600;">금액</td><td style="padding:8px;border:1px solid #ddd;font-size:13px;">${r.amount ? r.amount + '만원' : '-'}</td></tr>
         ${r.specialRequest ? `<tr><td style="padding:8px;border:1px solid #ddd;background:#f9f9f9;font-size:12px;font-weight:600;">특이사항</td><td style="padding:8px;border:1px solid #ddd;font-size:13px;">${r.specialRequest}</td></tr>` : ''}
