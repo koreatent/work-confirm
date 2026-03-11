@@ -1268,6 +1268,7 @@ function savePDFFromRecord(index) {
 
   const container = document.createElement('div');
   container.innerHTML = html;
+  container.style.cssText = 'position:fixed;left:-9999px;top:0;width:210mm;background:white;z-index:-1;';
   document.body.appendChild(container);
 
   const filename = r.filename + '.pdf';
@@ -1275,7 +1276,7 @@ function savePDFFromRecord(index) {
     margin: [5, 5, 5, 5],
     filename: filename,
     image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 794 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
   };
 
