@@ -436,6 +436,31 @@
     cursor: not-allowed;
   }
 
+  .btn-goto-records {
+    width: 100%;
+    background: transparent;
+    border: 1.5px solid var(--success);
+    border-radius: 14px;
+    padding: 15px;
+    color: var(--success);
+    font-size: 15px;
+    font-weight: 600;
+    font-family: 'Noto Sans KR', sans-serif;
+    cursor: pointer;
+    transition: all 0.3s;
+    letter-spacing: 0.3px;
+    margin-top: 10px;
+    animation: fadeInUp 0.4s ease;
+  }
+  .btn-goto-records:active {
+    background: rgba(46,204,113,0.1);
+    transform: scale(0.98);
+  }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
   .btn-pdf {
     width: 100%;
     background: transparent;
@@ -897,6 +922,9 @@
     <button class="btn-save" id="saveBtn" onclick="saveRecord()">
       확인서 저장
     </button>
+    <button class="btn-goto-records" id="gotoRecordsBtn" onclick="switchTab('records')" style="display:none;">
+      📋 기록 보러가기
+    </button>
 
   </div>
 
@@ -1099,6 +1127,20 @@ function saveRecord() {
     overlay.classList.remove('show');
   }, 3500);
 
+  // 저장 버튼 ✅ 변경 + 기록 보러가기 버튼 표시
+  const saveBtn = document.getElementById('saveBtn');
+  const gotoBtn = document.getElementById('gotoRecordsBtn');
+  saveBtn.textContent = '✅ 저장되었습니다';
+  saveBtn.style.background = 'linear-gradient(135deg, #27ae60 0%, #1e8449 100%)';
+  saveBtn.style.boxShadow = '0 4px 20px rgba(46,204,113,0.3)';
+  gotoBtn.style.display = 'block';
+  setTimeout(() => {
+    saveBtn.textContent = '확인서 저장';
+    saveBtn.style.background = '';
+    saveBtn.style.boxShadow = '';
+    gotoBtn.style.display = 'none';
+  }, 5000);
+
   // 폼 초기화
   resetForm();
 }
@@ -1282,10 +1324,33 @@ function savePDFFromRecord(index) {
 
   html2pdf().set(opt).from(container).save().then(() => {
     document.body.removeChild(container);
+    showPdfToast();
   }).catch(() => {
     document.body.removeChild(container);
     alert('PDF 생성 중 오류가 발생했습니다');
   });
+}
+
+// ─── PDF 저장 안내 토스트 ───
+function showPdfToast() {
+  let toast = document.getElementById('pdfToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'pdfToast';
+    toast.style.cssText = `
+      position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
+      background:#1a1a24; border:1px solid #2ecc71; border-radius:12px;
+      padding:12px 20px; color:#e8e4f0; font-size:13px; font-family:'Noto Sans KR',sans-serif;
+      z-index:9999; text-align:center; line-height:1.6;
+      box-shadow:0 4px 20px rgba(0,0,0,0.4);
+      opacity:0; transition:opacity 0.3s;
+      max-width:300px; width:90%;
+    `;
+    document.body.appendChild(toast);
+  }
+  toast.innerHTML = '📥 PDF 저장을 시작했습니다.<br><span style="font-size:11px;color:#8a86a0;">저장 위치는 기기의 다운로드 앱 또는<br>파일 앱에서 확인하세요.</span>';
+  toast.style.opacity = '1';
+  setTimeout(() => { toast.style.opacity = '0'; }, 4000);
 }
 
 // ─── 기록 펼치기 ───
