@@ -752,9 +752,8 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     btn.innerText = '⏳ 생성 중...';
     btn.disabled = true;
 
-    // 화면 밖 고정 iframe에 렌더링 → body 스크롤/레이아웃 영향 완전 차단
     const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;height:1123px;border:none;visibility:hidden;';
+    iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;height:1123px;border:none;opacity:0;pointer-events:none;';
     document.body.appendChild(iframe);
 
     const iDoc = iframe.contentDocument || iframe.contentWindow.document;
@@ -762,11 +761,16 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     iDoc.write(`<!DOCTYPE html><html><head>
       <meta charset="UTF-8">
       <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;900&display=swap" rel="stylesheet">
-      <style>*{font-family:'Noto Sans KR',sans-serif;box-sizing:border-box;}body{margin:0;padding:0;background:#fff;}</style>
+      <style>
+        *{font-family:'Noto Sans KR',sans-serif;box-sizing:border-box;}
+        body{margin:0;padding:0;background:#fff;}
+        td,th{vertical-align:middle !important;}
+        img{display:block !important;visibility:visible !important;max-width:100%;max-height:100%;}
+      </style>
     </head><body>${html}</body></html>`);
     iDoc.close();
 
-    // 폰트 로드 후 캡처
+    // 폰트+이미지 로드 후 캡처
     setTimeout(() => {
       const wrapper = iDoc.body.firstElementChild || iDoc.body;
       html2pdf().set({
@@ -786,7 +790,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
         btn.innerText = origText;
         btn.disabled = false;
       });
-    }, 600);
+    }, 1500);
   }
 
   // ── PDF 생성 ──
