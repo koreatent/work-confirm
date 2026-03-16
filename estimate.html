@@ -500,10 +500,10 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
 
   function buildSupplierCell() {
     return `
-      <td style="border:1px solid #cbd5e1;padding:0 8px;font-size:11px;vertical-align:middle;text-align:left;width:138px;min-width:138px;height:36px;line-height:1;">
-        <div style="height:36px;display:flex;align-items:center;justify-content:flex-start;gap:6px;white-space:nowrap;overflow:hidden;">
-          <span style="font-size:11px;white-space:nowrap;line-height:1;">${SUPPLIER.ceo}</span>
-          <img src="${STAMP_B64}" style="width:52px;height:52px;object-fit:contain;opacity:0.95;display:inline-block;flex:0 0 auto;transform:translateY(1px);" />
+      <td style="border:1px solid #cbd5e1;padding:4px 6px;font-size:11px;vertical-align:middle;text-align:left;">
+        <div style="display:flex;align-items:center;gap:4px;white-space:nowrap;">
+          <span style="font-size:11px;white-space:nowrap;">${SUPPLIER.ceo}</span>
+          <img src="${STAMP_B64}" style="width:44px;height:44px;object-fit:contain;opacity:0.92;display:block;flex-shrink:0;" />
         </div>
       </td>`;
   }
@@ -520,70 +520,80 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
         </div>
 
         <table style="width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px;table-layout:fixed;page-break-inside:avoid;">
+          <colgroup><col style="width:50%;"><col style="width:50%;"></colgroup>
           <tr>
-            <td style="width:50%;vertical-align:top;padding-right:8px;">
+            <!-- 공급자 (왼쪽) -->
+            <td style="vertical-align:top;padding-right:6px;">
               <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+                <colgroup>
+                  <col style="width:56px;">
+                  <col style="width:auto;">
+                  <col style="width:36px;">
+                  <col style="width:auto;">
+                </colgroup>
                 <tr>
-                  <td colspan="4" style="background:#0f172a;color:#fff;font-weight:700;padding:7px 8px;font-size:11px;text-align:center;height:26px;">공 급 자</td>
+                  <td colspan="4" style="background:#0f172a;color:#fff;font-weight:700;padding:6px 8px;font-size:11px;text-align:center;height:28px;line-height:1;">공 급 자</td>
                 </tr>
-                <tr>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;background:#f8fafc;font-weight:700;width:70px;font-size:11px;height:26px;">사업자번호</td>
-                  <td colspan="3" style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;word-break:keep-all;height:26px;">${SUPPLIER.bizNo}</td>
+                <tr style="height:28px;">
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:10px;white-space:nowrap;">사업자번호</td>
+                  <td colspan="3" style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;white-space:nowrap;">${SUPPLIER.bizNo}</td>
                 </tr>
-                <tr>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;background:#f8fafc;font-weight:700;font-size:11px;height:26px;">상 호</td>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;">${SUPPLIER.name}</td>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;background:#f8fafc;font-weight:700;font-size:11px;height:26px;width:44px;">성 명</td>
+                <tr style="height:48px;">
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">상 호</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;word-break:keep-all;">${SUPPLIER.name}</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 4px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;text-align:center;">성명</td>
                   ${buildSupplierCell()}
                 </tr>
-                <tr>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;background:#f8fafc;font-weight:700;font-size:11px;height:26px;">주 소</td>
-                  <td colspan="3" style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;word-break:keep-all;height:26px;">${SUPPLIER.addr}</td>
+                <tr style="height:28px;">
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">주 소</td>
+                  <td colspan="3" style="border:1px solid #cbd5e1;padding:5px 7px;font-size:10px;word-break:break-all;">${SUPPLIER.addr}</td>
                 </tr>
-                <tr>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;background:#f8fafc;font-weight:700;font-size:11px;height:26px;">업 태</td>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;">${SUPPLIER.bizType}</td>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;background:#f8fafc;font-weight:700;font-size:11px;height:26px;">종 목</td>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;">${SUPPLIER.bizItem}</td>
+                <tr style="height:28px;">
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">업 태</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${SUPPLIER.bizType}</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 4px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;text-align:center;">종목</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:10px;word-break:keep-all;">${SUPPLIER.bizItem}</td>
                 </tr>
-                <tr>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;background:#f8fafc;font-weight:700;font-size:11px;height:26px;">TEL</td>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;">${SUPPLIER.tel}</td>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;background:#f8fafc;font-weight:700;font-size:11px;height:26px;">FAX</td>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;">${SUPPLIER.fax}</td>
+                <tr style="height:28px;">
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">TEL</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;white-space:nowrap;">${SUPPLIER.tel}</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 4px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;text-align:center;">FAX</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;white-space:nowrap;">${SUPPLIER.fax}</td>
                 </tr>
-                <tr>
-                  <td colspan="4" style="border:1px solid #cbd5e1;padding:6px 8px;font-size:10px;color:#475569;word-break:break-all;">
+                <tr style="height:24px;">
+                  <td colspan="4" style="border:1px solid #cbd5e1;padding:5px 7px;font-size:10px;color:#475569;">
                     M: ${SUPPLIER.mobile} &nbsp; E: ${SUPPLIER.email}
                   </td>
                 </tr>
               </table>
             </td>
 
-            <td style="width:50%;vertical-align:top;padding-left:8px;">
+            <!-- 견적 정보 (오른쪽) -->
+            <td style="vertical-align:top;padding-left:6px;">
               <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+                <colgroup><col style="width:70px;"><col style="width:auto;"></colgroup>
                 <tr>
-                  <td colspan="2" style="background:#0f172a;color:#fff;font-weight:700;padding:7px 8px;font-size:11px;text-align:center;height:26px;">견 적 정 보</td>
+                  <td colspan="2" style="background:#0f172a;color:#fff;font-weight:700;padding:6px 8px;font-size:11px;text-align:center;height:28px;line-height:1;">견 적 정 보</td>
                 </tr>
-                <tr>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;background:#f8fafc;font-weight:700;width:76px;height:26px;">견적번호</td>
-                  <td style="border:1px solid #cbd5e1;padding:6px 8px;">${currentNo}</td>
+                <tr style="height:28px;">
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">견적번호</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${currentNo}</td>
                 </tr>
-                <tr>
-                  <td style="border:1px solid #cbd5e1;padding:6px 8px;background:#f8fafc;font-weight:700;">견적일</td>
-                  <td style="border:1px solid #cbd5e1;padding:6px 8px;">${today}</td>
+                <tr style="height:28px;">
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">견적일</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${today}</td>
                 </tr>
-                <tr>
-                  <td style="border:1px solid #cbd5e1;padding:6px 8px;background:#f8fafc;font-weight:700;">거래처</td>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;font-weight:700;font-size:12px;height:26px;">${client}</td>
+                <tr style="height:28px;">
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">거래처</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-weight:700;font-size:12px;">${client}</td>
                 </tr>
-                <tr>
-                  <td style="border:1px solid #cbd5e1;padding:6px 8px;background:#f8fafc;font-weight:700;">공사명</td>
-                  <td style="border:1px solid #cbd5e1;padding:6px 8px;">${work || '-'}</td>
+                <tr style="height:28px;">
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">공사명</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${work || '-'}</td>
                 </tr>
-                <tr>
-                  <td style="border:1px solid #cbd5e1;padding:6px 8px;background:#f8fafc;font-weight:700;">합계금액</td>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;font-weight:900;font-size:14px;color:#0f172a;">
+                <tr style="height:28px;">
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">합계금액</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-weight:900;font-size:13px;color:#0f172a;">
                     ￦ ${fmt(total)}
                   </td>
                 </tr>
@@ -638,55 +648,65 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
         </div>
 
         <table style="width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px;table-layout:fixed;page-break-inside:avoid;">
+          <colgroup><col style="width:50%;"><col style="width:50%;"></colgroup>
           <tr>
-            <td style="width:50%;vertical-align:top;padding-right:8px;">
+            <!-- 공급자 (왼쪽) -->
+            <td style="vertical-align:top;padding-right:6px;">
               <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+                <colgroup>
+                  <col style="width:56px;">
+                  <col style="width:auto;">
+                  <col style="width:36px;">
+                  <col style="width:auto;">
+                </colgroup>
                 <tr>
-                  <td colspan="4" style="background:#0f172a;color:#fff;font-weight:700;padding:7px 8px;font-size:11px;text-align:center;height:26px;">공 급 자</td>
+                  <td colspan="4" style="background:#0f172a;color:#fff;font-weight:700;padding:6px 8px;font-size:11px;text-align:center;height:28px;line-height:1;">공 급 자</td>
                 </tr>
-                <tr>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;background:#f8fafc;font-weight:700;width:70px;font-size:11px;height:26px;">상 호</td>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;">${SUPPLIER.name}</td>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;background:#f8fafc;font-weight:700;font-size:11px;height:26px;width:44px;">성 명</td>
+                <tr style="height:48px;">
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">상 호</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;word-break:keep-all;">${SUPPLIER.name}</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 4px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;text-align:center;">성명</td>
                   ${buildSupplierCell()}
                 </tr>
-                <tr>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;background:#f8fafc;font-weight:700;font-size:11px;height:26px;">사업자번호</td>
-                  <td colspan="3" style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;">${SUPPLIER.bizNo}</td>
+                <tr style="height:28px;">
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:10px;white-space:nowrap;">사업자번호</td>
+                  <td colspan="3" style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;white-space:nowrap;">${SUPPLIER.bizNo}</td>
                 </tr>
-                <tr>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;background:#f8fafc;font-weight:700;font-size:11px;height:26px;">주 소</td>
-                  <td colspan="3" style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;word-break:keep-all;height:26px;">${SUPPLIER.addr}</td>
+                <tr style="height:28px;">
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">주 소</td>
+                  <td colspan="3" style="border:1px solid #cbd5e1;padding:5px 7px;font-size:10px;word-break:break-all;">${SUPPLIER.addr}</td>
                 </tr>
-                <tr>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;background:#f8fafc;font-weight:700;font-size:11px;height:26px;">TEL</td>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;">${SUPPLIER.tel}</td>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;background:#f8fafc;font-weight:700;font-size:11px;height:26px;">FAX</td>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;">${SUPPLIER.fax}</td>
+                <tr style="height:28px;">
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">TEL</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;white-space:nowrap;">${SUPPLIER.tel}</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 4px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;text-align:center;">FAX</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;white-space:nowrap;">${SUPPLIER.fax}</td>
                 </tr>
               </table>
             </td>
 
-            <td style="width:50%;vertical-align:top;padding-left:8px;">
+            <!-- 공급받는자 (오른쪽) -->
+            <td style="vertical-align:top;padding-left:6px;">
               <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+                <colgroup><col style="width:70px;"><col style="width:auto;"></colgroup>
                 <tr>
-                  <td colspan="2" style="background:#0f172a;color:#fff;font-weight:700;padding:7px 8px;font-size:11px;text-align:center;height:26px;">공 급 받 는 자</td>
+                  <td colspan="2" style="background:#0f172a;color:#fff;font-weight:700;padding:6px 8px;font-size:11px;text-align:center;height:28px;line-height:1;">공 급 받 는 자</td>
                 </tr>
-                <tr>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;background:#f8fafc;font-weight:700;width:76px;height:26px;">거래처</td>
-                  <td style="border:1px solid #cbd5e1;padding:7px 8px;font-weight:700;font-size:12px;height:26px;">${client}</td>
+                <tr style="height:28px;">
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">거래처</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-weight:700;font-size:12px;">${client}</td>
                 </tr>
-                <tr>
-                  <td style="border:1px solid #cbd5e1;padding:6px 8px;background:#f8fafc;font-weight:700;">작성일</td>
-                  <td style="border:1px solid #cbd5e1;padding:6px 8px;">${today}</td>
+                <tr style="height:28px;">
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">작성일</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${today}</td>
                 </tr>
-                <tr>
-                  <td style="border:1px solid #cbd5e1;padding:6px 8px;background:#f8fafc;font-weight:700;">문서번호</td>
-                  <td style="border:1px solid #cbd5e1;padding:6px 8px;">${currentNo}</td>
+                <tr style="height:28px;">
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">문서번호</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${currentNo}</td>
                 </tr>
-                <tr>
-                  <td style="border:1px solid #cbd5e1;padding:6px 8px;background:#f8fafc;font-weight:700;">공사명</td>
-                  <td style="border:1px solid #cbd5e1;padding:6px 8px;">${work || '-'}</td>
+                <tr style="height:28px;">
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">공사명</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${work || '-'}</td>
                 </tr>
               </table>
             </td>
