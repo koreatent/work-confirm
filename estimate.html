@@ -32,13 +32,14 @@
 
     /* ── 헤더 ── */
     header {
-      background: #0f172a;
+      background: #ffffff;
+      border-bottom: 2px solid #e2e8f0;
     }
     .tab-bar {
-      background: #0c1423;
+      background: #ffffff;
     }
-    .tab-btn { color: rgba(255,255,255,0.55); border-color: rgba(255,255,255,0.15) !important; }
-    .tab-btn.active { background: #ffffff !important; color: #0f172a !important; border-color: #ffffff !important; }
+    .tab-btn { color: #94a3b8; border-color: #e2e8f0 !important; }
+    .tab-btn.active { background: #0f172a !important; color: #ffffff !important; border-color: #0f172a !important; }
 
     /* ── 카드 ── */
     .card {
@@ -172,11 +173,11 @@
 <header class="p-4 sticky top-0 z-50" style="padding-top: calc(10px + env(safe-area-inset-top));">
   <div class="flex justify-between items-center mb-3">
     <div>
-      <p class="text-[10px] font-bold" style="color:rgba(255,255,255,0.5);">한국천막앵글상사</p>
-      <h1 class="font-black text-lg tracking-tight text-white">TNS 견적 <span class="text-xs font-normal" style="color:rgba(255,255,255,0.5);">v2.1</span></h1>
-      <p class="text-[10px] font-bold" style="color:#93c5fd;" id="estimate-no">번호 생성 중...</p>
+      <p class="text-[10px] font-bold" style="color:#94a3b8;">한국천막앵글상사</p>
+      <h1 class="font-black text-lg tracking-tight" style="color:#0f172a;">TNS 견적 <span class="text-xs font-normal" style="color:#94a3b8;">v2.1</span></h1>
+      <p class="text-[10px] font-bold" style="color:#0f172a;" id="estimate-no">번호 생성 중...</p>
     </div>
-    <span class="text-[10px] px-2 py-0.5 rounded-full font-bold" style="background:#f59e0b;color:#ffffff;">LIVE</span>
+    <span class="text-[10px] px-2 py-0.5 rounded-full font-bold" style="background:#0f172a;color:#ffffff;">LIVE</span>
   </div>
   <div class="tab-bar flex space-x-2 -mx-4 px-4 pb-3 pt-1">
     <button class="tab-btn active flex-1 py-2 rounded-lg text-xs font-black border" onclick="switchTab('form')">✏️ 견적 작성</button>
@@ -198,7 +199,7 @@
       </div>
       <div class="grid grid-cols-2 gap-2">
         <input id="client-name" type="text" placeholder="거래처명" class="border rounded-lg p-2 font-bold text-sm">
-        <input id="work-name" type="text" placeholder="공사명" class="border rounded-lg p-2 font-bold text-sm">
+        <input id="work-name" type="text" placeholder="세부유형" class="border rounded-lg p-2 font-bold text-sm">
       </div>
     </div>
 
@@ -292,9 +293,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       </div>
       <input type="text" placeholder="품명 직접 입력" class="item-name w-full border rounded-lg p-2 mb-2 font-bold text-sm">
       <div class="grid grid-cols-3 gap-2">
-        <select class="unit border rounded-lg p-2 text-xs">
-          <option>㎡</option><option>식</option><option>m</option><option>EA</option><option>본</option><option>조</option><option>인</option>
-        </select>
+        <input type="text" placeholder="규격" class="unit border rounded-lg p-2 text-xs">
         <input type="text" placeholder="수량" value="1" inputmode="decimal" class="qty border rounded-lg p-2 text-right text-xs">
         <input type="text" placeholder="단가" inputmode="numeric" class="price border rounded-lg p-2 text-right text-xs font-bold">
       </div>
@@ -314,12 +313,15 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       e.target.value = raw ? fmt(raw) : '';
       calculate();
     });
-    [qty, price, name].forEach(i => {
+    [qty, price].forEach(i => {
       i.addEventListener('change', calculate);
       i.addEventListener('keyup', calculate);
-      i.addEventListener('focus', () => ensureVisible(div));
+      i.addEventListener('focus', (e) => { ensureVisible(div); setTimeout(() => e.target.select(), 0); });
     });
-    unit.addEventListener('change', calculate);
+    name.addEventListener('change', calculate);
+    name.addEventListener('keyup', calculate);
+    name.addEventListener('focus', () => ensureVisible(div));
+    unit.addEventListener('input', calculate);
     unit.addEventListener('focus', () => ensureVisible(div));
     return div;
   }
@@ -513,7 +515,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     const rows = buildRows(items);
 
     return `
-      <div style="width:190mm;min-height:277mm;padding:12mm 10mm 10mm 10mm;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;overflow:visible;">
+      <div style="width:210mm;min-height:297mm;display:flex;align-items:flex-start;justify-content:center;box-sizing:border-box;background:#fff;"><div style="width:190mm;padding:12mm 10mm 10mm 10mm;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;">
         <div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:3px solid #0f172a;">
           <div style="font-size:10px;color:#64748b;letter-spacing:3px;margin-bottom:6px;font-weight:700;">한국천막앵글상사</div>
           <div style="font-size:20px;font-weight:900;letter-spacing:4px;color:#0f172a;">견 적 서</div>
@@ -588,7 +590,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
                   <td style="border:1px solid #cbd5e1;padding:5px 7px;font-weight:700;font-size:12px;">${client}</td>
                 </tr>
                 <tr style="height:28px;">
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">공사명</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">세부유형</td>
                   <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${work || '-'}</td>
                 </tr>
                 <tr style="height:28px;">
@@ -606,7 +608,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
           <thead>
             <tr style="background:#0f172a;color:white;">
               <th style="padding:8px 8px;font-size:11px;text-align:left;font-weight:700;">품명</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;">단위</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;">규격</th>
               <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">수량</th>
               <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">단가</th>
               <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">금액</th>
@@ -633,7 +635,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
         <div style="padding-top:12px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;text-align:center;">
           ${SUPPLIER.name} · ${SUPPLIER.tel} · ${SUPPLIER.addr} · 발행일: ${today}
         </div>
-      </div>`;
+      </div></div>`;
   }
 
   function buildStatementHTML() {
@@ -641,7 +643,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     const rows = buildRows(items);
 
     return `
-      <div style="width:190mm;min-height:277mm;padding:12mm 10mm 10mm 10mm;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;overflow:visible;">
+      <div style="width:210mm;min-height:297mm;display:flex;align-items:flex-start;justify-content:center;box-sizing:border-box;background:#fff;"><div style="width:190mm;padding:12mm 10mm 10mm 10mm;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;">
         <div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:3px solid #0f172a;">
           <div style="font-size:10px;color:#64748b;letter-spacing:3px;margin-bottom:6px;font-weight:700;">한국천막앵글상사</div>
           <div style="font-size:20px;font-weight:900;letter-spacing:4px;color:#0f172a;">거 래 명 세 서</div>
@@ -705,7 +707,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
                   <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${currentNo}</td>
                 </tr>
                 <tr style="height:28px;">
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">공사명</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">세부유형</td>
                   <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${work || '-'}</td>
                 </tr>
               </table>
@@ -717,7 +719,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
           <thead>
             <tr style="background:#0f172a;color:white;">
               <th style="padding:8px 8px;font-size:11px;text-align:left;font-weight:700;">품명</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;">단위</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;">규격</th>
               <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">수량</th>
               <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">단가</th>
               <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">금액</th>
