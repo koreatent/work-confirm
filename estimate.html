@@ -97,6 +97,27 @@
       background: #facc15;
       color: #713f12;
     }
+    .btn-labor {
+      background: #1e40af;
+      color: #ffffff;
+    }
+    .btn-labor:active { background: #1e3a8a; }
+    .labor-card {
+      background: #eff6ff;
+      border: 1px solid #1e40af;
+      border-radius: 12px;
+      border-left: 4px solid #1e40af;
+      margin-bottom: 10px;
+      transition: all 0.2s ease;
+    }
+    .labor-label {
+      background: #1e40af;
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 900;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
     .btn-template {
       background: #ffffff;
       color: #0f172a;
@@ -224,9 +245,10 @@
     </div>
     <div class="grid grid-cols-2 gap-2">
       <button onclick="addItem()" class="btn-add py-3 rounded-xl font-black text-[11px] shadow-md">+ 품목 추가</button>
+      <button onclick="addLaborItem()" class="btn-labor py-3 rounded-xl font-black text-[11px] shadow-md">+ 인건비 추가</button>
       <button onclick="saveEstimate()" class="btn-save py-3 rounded-xl font-black text-[11px] shadow-md">저장</button>
       <button onclick="generatePDF()" class="btn-pdf py-3 rounded-xl font-black text-[11px] shadow-md">견적서 PDF</button>
-      <button onclick="generateStatementPDF()" class="btn-pdf py-3 rounded-xl font-black text-[11px] shadow-md">거래명세서</button>
+      <button onclick="generateStatementPDF()" class="btn-pdf py-3 rounded-xl font-black text-[11px] shadow-md col-span-2">거래명세서</button>
     </div>
   </footer>
 </div>
@@ -331,7 +353,73 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     document.getElementById('item-container').appendChild(card);
     updateLabels();
     calculate();
-    // mobile scroll jump removed
+  }
+
+  // ── 인건비 카드 생성 ──
+  const LABOR_TYPES = ['철골제작', '천막제작', '현장설치작업', '철거작업'];
+
+  function createLaborCard() {
+    const div = document.createElement('div');
+    div.className = 'labor-card p-4';
+    div.dataset.type = 'labor';
+    div.innerHTML = `
+      <div class="flex justify-between items-center mb-2">
+        <span class="labor-label">인건비</span>
+        <button onclick="this.closest('.labor-card').remove(); updateLabels(); calculate();" class="text-slate-400 text-sm font-bold hover:text-red-400">✕</button>
+      </div>
+      <select class="labor-type w-full border rounded-lg p-2 mb-2 font-bold text-sm" style="border-color:#1e40af!important;">
+        ${LABOR_TYPES.map(t => `<option>${t}</option>`).join('')}
+      </select>
+      <div class="grid grid-cols-3 gap-2">
+        <div class="flex flex-col">
+          <span class="text-[9px] font-black text-blue-700 mb-1 text-center">인원(명)</span>
+          <input type="text" value="1" inputmode="numeric" class="labor-people border rounded-lg p-2 text-right text-xs" style="border-color:#1e40af!important;">
+        </div>
+        <div class="flex flex-col">
+          <span class="text-[9px] font-black text-blue-700 mb-1 text-center">일수(일)</span>
+          <input type="text" value="1" inputmode="numeric" class="labor-days border rounded-lg p-2 text-right text-xs" style="border-color:#1e40af!important;">
+        </div>
+        <div class="flex flex-col">
+          <span class="text-[9px] font-black text-blue-700 mb-1 text-center">일당(원)</span>
+          <input type="text" inputmode="numeric" placeholder="0" class="labor-wage border rounded-lg p-2 text-right text-xs font-bold" style="border-color:#1e40af!important;">
+        </div>
+      </div>
+      <div class="mt-2 text-right text-xs font-black text-blue-800 labor-subtotal"></div>
+    `;
+
+    const people = div.querySelector('.labor-people');
+    const days   = div.querySelector('.labor-days');
+    const wage   = div.querySelector('.labor-wage');
+    const sub    = div.querySelector('.labor-subtotal');
+
+    function updateSub() {
+      const amt = num(people.value) * num(days.value) * num(wage.value);
+      sub.innerText = amt > 0
+        ? `${people.value}인 × ${days.value}일 × ${fmt(num(wage.value))}원 = ${fmt(amt)}원`
+        : '';
+      calculate();
+    }
+
+    wage.addEventListener('input', (e) => {
+      const raw = e.target.value.replace(/[^\d]/g, '');
+      e.target.value = raw ? fmt(raw) : '';
+      updateSub();
+    });
+    [people, days].forEach(i => {
+      i.addEventListener('input', updateSub);
+      i.addEventListener('change', updateSub);
+      i.addEventListener('focus', (e) => { setTimeout(() => e.target.select(), 0); });
+    });
+    wage.addEventListener('focus', (e) => { setTimeout(() => e.target.select(), 0); });
+
+    return div;
+  }
+
+  function addLaborItem() {
+    const card = createLaborCard();
+    document.getElementById('item-container').appendChild(card);
+    updateLabels();
+    calculate();
   }
 
   function updateLabels() {
@@ -371,6 +459,12 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       const p = num(card.querySelector('.price').value);
       supply += (q * p);
     });
+    document.querySelectorAll('.labor-card').forEach(card => {
+      const p = num(card.querySelector('.labor-people').value);
+      const d = num(card.querySelector('.labor-days').value);
+      const w = num(card.querySelector('.labor-wage').value);
+      supply += (p * d * w);
+    });
     const total = vatOn ? Math.floor(supply * 1.1) : supply;
     document.getElementById('total-price').innerText = fmt(total) + '원';
     document.getElementById('vat-label').innerText = vatOn ? 'VAT 포함' : 'VAT 별도';
@@ -388,12 +482,19 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       q: c.querySelector('.qty').value,
       p: c.querySelector('.price').value
     }));
+    const labors = Array.from(document.querySelectorAll('.labor-card')).map(c => ({
+      type: c.querySelector('.labor-type').value,
+      people: c.querySelector('.labor-people').value,
+      days:   c.querySelector('.labor-days').value,
+      wage:   c.querySelector('.labor-wage').value
+    }));
     const data = {
       estimateNo: currentNo,
       workType: document.getElementById('work-type').value,
       client: document.getElementById('client-name').value || '미정',
       work: document.getElementById('work-name').value || '',
       items,
+      labors,
       vatOn: document.getElementById('vat-toggle').checked,
       total: document.getElementById('total-price').innerText,
       date: new Date().toISOString()
@@ -448,6 +549,19 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       card.querySelector('.qty').value = it.q;
       card.querySelector('.price').value = it.p;
     });
+    (r.labors || []).forEach(lb => {
+      const card = createLaborCard();
+      document.getElementById('item-container').appendChild(card);
+      card.querySelector('.labor-type').value   = lb.type;
+      card.querySelector('.labor-people').value = lb.people;
+      card.querySelector('.labor-days').value   = lb.days;
+      card.querySelector('.labor-wage').value   = lb.wage;
+      // subtotal 표시 갱신
+      const p = num(lb.people), d = num(lb.days), w = num(lb.wage);
+      const amt = p * d * w;
+      card.querySelector('.labor-subtotal').innerText = amt > 0
+        ? `${lb.people}인 × ${lb.days}일 × ${fmt(w)}원 = ${fmt(amt)}원` : '';
+    });
     currentNo = r.estimateNo;
     document.getElementById('estimate-no').innerText = currentNo;
     updateLabels(); calculate();
@@ -479,18 +593,28 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       const price= num(c.querySelector('.price').value);
       const amt  = qty * price;
       supply += amt;
-      return { name, unit, qty, price, amt };
+      return { name, unit, qty, price, amt, isLabor: false };
+    });
+
+    const labors = Array.from(document.querySelectorAll('.labor-card')).map(c => {
+      const type   = c.querySelector('.labor-type').value;
+      const people = num(c.querySelector('.labor-people').value);
+      const days   = num(c.querySelector('.labor-days').value);
+      const wage   = num(c.querySelector('.labor-wage').value);
+      const amt    = people * days * wage;
+      supply += amt;
+      return { type, people, days, wage, amt, isLabor: true };
     });
 
     const vatAmt = vatOn ? Math.floor(supply * 0.1) : 0;
     const total  = vatOn ? supply + vatAmt : supply;
     const today  = new Date().toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric'});
 
-    return { client, work, vatOn, items, supply, vatAmt, total, today };
+    return { client, work, vatOn, items, labors, supply, vatAmt, total, today };
   }
 
-  function buildRows(items) {
-    return items.map(it => `
+  function buildRows(items, labors) {
+    const itemRows = items.map(it => `
       <tr>
         <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;">${it.name}</td>
         <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;text-align:center;">${it.unit}</td>
@@ -498,6 +622,17 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
         <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;text-align:right;">${fmt(it.price)}</td>
         <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;text-align:right;font-weight:700;">${fmt(it.amt)}</td>
       </tr>`).join('');
+
+    const laborRows = (labors || []).map(lb => `
+      <tr style="background:#eff6ff;">
+        <td style="border:1px solid #bfdbfe;padding:7px 8px;font-size:11px;height:26px;color:#1e40af;font-weight:700;">[인건비] ${lb.type}</td>
+        <td style="border:1px solid #bfdbfe;padding:7px 8px;font-size:10px;height:26px;text-align:center;color:#1e40af;">${lb.people}인×${lb.days}일</td>
+        <td style="border:1px solid #bfdbfe;padding:7px 8px;font-size:11px;height:26px;text-align:right;color:#1e40af;">${lb.people * lb.days}</td>
+        <td style="border:1px solid #bfdbfe;padding:7px 8px;font-size:11px;height:26px;text-align:right;color:#1e40af;">${fmt(lb.wage)}</td>
+        <td style="border:1px solid #bfdbfe;padding:7px 8px;font-size:11px;height:26px;text-align:right;font-weight:700;color:#1e40af;">${fmt(lb.amt)}</td>
+      </tr>`).join('');
+
+    return itemRows + laborRows;
   }
 
   function buildSupplierCell() {
@@ -511,8 +646,8 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
   }
 
   function buildEstimateHTML() {
-    const { client, work, vatOn, items, supply, vatAmt, total, today } = getDocData();
-    const rows = buildRows(items);
+    const { client, work, vatOn, items, labors, supply, vatAmt, total, today } = getDocData();
+    const rows = buildRows(items, labors);
 
     return `
       <div style="width:210mm;min-height:297mm;display:flex;align-items:flex-start;justify-content:center;box-sizing:border-box;background:#fff;"><div style="width:190mm;padding:12mm 10mm 10mm 10mm;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;">
@@ -639,8 +774,8 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
   }
 
   function buildStatementHTML() {
-    const { client, work, vatOn, items, supply, vatAmt, total, today } = getDocData();
-    const rows = buildRows(items);
+    const { client, work, vatOn, items, labors, supply, vatAmt, total, today } = getDocData();
+    const rows = buildRows(items, labors);
 
     return `
       <div style="width:210mm;min-height:297mm;display:flex;align-items:flex-start;justify-content:center;box-sizing:border-box;background:#fff;"><div style="width:190mm;padding:12mm 10mm 10mm 10mm;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;">
@@ -817,7 +952,16 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       .filter(c => c.querySelector('.item-name').value)
       .map(c => `· ${c.querySelector('.item-name').value} ${c.querySelector('.qty').value}${c.querySelector('.unit').value} × ${fmt(num(c.querySelector('.price').value))}원`)
       .join('\n');
-    const msg = `[한국천막앵글상사 견적]\n번호: ${currentNo}\n거래처: ${client}\n\n${itemList}\n\n합계: ${total} ${vatOn?'(VAT포함)':'(VAT별도)'}\n\nTEL: ${SUPPLIER.tel} / M: ${SUPPLIER.mobile}`;
+    const laborList = Array.from(document.querySelectorAll('.labor-card'))
+      .map(c => {
+        const t = c.querySelector('.labor-type').value;
+        const p = num(c.querySelector('.labor-people').value);
+        const d = num(c.querySelector('.labor-days').value);
+        const w = num(c.querySelector('.labor-wage').value);
+        return `· [인건비] ${t} ${p}인×${d}일 × ${fmt(w)}원`;
+      }).join('\n');
+    const combined = [itemList, laborList].filter(Boolean).join('\n');
+    const msg = `[한국천막앵글상사 견적]\n번호: ${currentNo}\n거래처: ${client}\n\n${combined}\n\n합계: ${total} ${vatOn?'(VAT포함)':'(VAT별도)'}\n\nTEL: ${SUPPLIER.tel} / M: ${SUPPLIER.mobile}`;
     if(navigator.share) {
       navigator.share({ title:`견적서 ${currentNo}`, text:msg }).catch(() => copyMsg(msg));
     } else {
