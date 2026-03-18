@@ -149,6 +149,22 @@
       color: #e11d48;
       border: 1px solid #fecdd3;
     }
+    .btn-confirm {
+      background: #15803d;
+      color: #ffffff;
+    }
+    .btn-confirm:active { background: #166534; }
+    .status-badge {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 900;
+      padding: 2px 7px;
+      border-radius: 4px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    .status-draft    { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
+    .status-approved { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
     #records-count {
       background: #0f172a;
       color: #ffffff;
@@ -250,8 +266,9 @@
     <div class="grid grid-cols-2 gap-2">
       <button onclick="addItem()" class="btn-add py-3 rounded-xl font-black text-[11px] shadow-md">+ 품목 추가</button>
       <button onclick="addLaborItem()" class="btn-labor py-3 rounded-xl font-black text-[11px] shadow-md">+ 인건비 추가</button>
-      <button onclick="saveEstimate()" class="btn-save py-3 rounded-xl font-black text-[11px] shadow-md">저장</button>
-      <button onclick="generatePDF()" class="btn-pdf py-3 rounded-xl font-black text-[11px] shadow-md">견적서 PDF</button>
+      <button onclick="saveEstimate('draft')" class="btn-save py-3 rounded-xl font-black text-[11px] shadow-md">💾 견적 저장</button>
+      <button onclick="saveEstimate('approved')" class="btn-confirm py-3 rounded-xl font-black text-[11px] shadow-md">✅ 견적 확정</button>
+      <button onclick="generatePDF()" class="btn-pdf py-3 rounded-xl font-black text-[11px] shadow-md col-span-2">견적서 PDF</button>
 
     </div>
   </footer>
@@ -271,6 +288,8 @@
   const num = (v) => Number(String(v ?? '').replace(/[^\d.-]/g, '')) || 0;
 
   // ── 공급자 정보 (PDF용) ──
+  const PAYMENT_TERM = '계약금 50% 입금 후 제작 진행 / 잔금은 시공 완료 후 지급';
+
   const SUPPLIER = {
     bizNo:   '126-17-66563',
     name:    '한국천막앵글상사',
@@ -351,17 +370,58 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
   }
 
   let currentNo = getEstimateNo();
+  let isLocked  = false;   // 확정된 견적 수정 차단 플래그
   document.getElementById('estimate-no').innerText = currentNo;
+
+  // ── 락 적용/해제 ──
+  function applyLock(lock) {
+    isLocked = lock;
+    // 모든 입력 필드
+    document.querySelectorAll('#tab-form input, #tab-form select').forEach(el => {
+      el.disabled = lock;
+    });
+    // 푸터 버튼 (추가/저장/확정)
+    ['btn-add','btn-labor','btn-save','btn-confirm'].forEach(cls => {
+      document.querySelectorAll('.' + cls).forEach(btn => {
+        btn.disabled = lock;
+        btn.style.opacity = lock ? '0.35' : '';
+        btn.style.cursor  = lock ? 'not-allowed' : '';
+      });
+    });
+    // 카드 삭제 버튼 (✕)
+    document.querySelectorAll('.item-card button, .labor-card button').forEach(btn => {
+      btn.disabled = lock;
+    });
+  }
+
+  // ── 새 견적 폼 초기화 ──
+  function resetFormForNewEstimate() {
+    document.getElementById('work-type').value = '어닝';
+    document.getElementById('client-name').value = '';
+    document.getElementById('work-name').value = '';
+    document.getElementById('vat-toggle').checked = true;
+    document.getElementById('statement-toggle').checked = false;
+    document.getElementById('item-container').innerHTML = '';
+    addItem();
+    updateLabels();
+    calculate();
+  }
 
   // ── 탭 전환 ──
   function switchTab(tab) {
     document.getElementById('tab-form').classList.toggle('hidden', tab !== 'form');
     document.getElementById('tab-records').classList.toggle('hidden', tab !== 'records');
     document.querySelectorAll('.tab-btn').forEach((b,i) => {
-      const active = (tab==='form' && i===0) || (tab==='records' && i===1);
-      b.classList.toggle('active', active);
+      b.classList.toggle('active', (i===0 && tab==='form') || (i===1 && tab==='records'));
     });
-    if(tab==='records') renderRecords();
+    if (tab === 'form' && isLocked) {
+      applyLock(false);
+      resetFormForNewEstimate();
+      currentNo = getEstimateNo();
+      document.getElementById('estimate-no').innerText = currentNo;
+      showToast('✏️ 새 견적 작성 모드');
+    }
+    if (tab === 'records') renderRecords();
   }
 
   // ── 품목 카드 생성 ──
@@ -548,7 +608,8 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     setTimeout(() => { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 120);
   }
   // ── 저장 ──
-  function saveEstimate() {
+  function saveEstimate(status) {
+    status = status || 'draft';
     const now = new Date().toISOString();
     const header = {
       estimate_id:     currentNo,
@@ -556,10 +617,11 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       customer_name:   document.getElementById('client-name').value || '미정',
       site_name:       document.getElementById('work-name').value || '',
       project_name:    document.getElementById('work-type').value || '',
-      estimate_status: '작성중',
-      total_amount:    document.getElementById('total-price').innerText,
-      vat_on:          document.getElementById('vat-toggle').checked,
-      created_at:      now
+      estimate_status:   status,
+      total_amount:      document.getElementById('total-price').innerText,
+      vat_on:            document.getElementById('vat-toggle').checked,
+      payment_term_text: PAYMENT_TERM,
+      created_at:        now
     };
     let lineNo = 1;
     const itemLines = Array.from(document.querySelectorAll('.item-card')).map(c => ({
@@ -591,8 +653,16 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       };
     });
     const result = TNS_Storage.save(header, [...itemLines, ...laborLines]);
-    if (result.success) showToast('✅ 저장 완료!');
-    else showToast('❌ 저장 실패');
+    if (result.success) {
+      if (status === 'approved') {
+        applyLock(true);
+        showToast('✅ 견적 확정 완료!');
+      } else {
+        showToast('💾 저장 완료!');
+      }
+    } else {
+      showToast('❌ 저장 실패');
+    }
   }
 
   // ── 기록 렌더링 ──
@@ -604,11 +674,18 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       list.innerHTML = '<div class="text-center text-slate-400 py-10 text-sm font-bold">저장된 견적서가 없습니다</div>';
       return;
     }
-    list.innerHTML = rs.map(r => `
+    list.innerHTML = rs.map(r => {
+      const isDraft    = r.estimate_status !== 'approved';
+      const badgeClass = isDraft ? 'status-draft' : 'status-approved';
+      const badgeText  = isDraft ? '작성중' : '확정';
+      return `
       <div class="record-card p-4">
         <div class="flex justify-between items-start">
           <div>
-            <div class="font-black text-slate-900">${r.customer_name}</div>
+            <div class="font-black text-slate-900">
+              ${r.customer_name}
+              <span class="status-badge ${badgeClass}">${badgeText}</span>
+            </div>
             <div class="text-xs text-slate-500 mt-0.5">${r.estimate_id} · ${r.project_name||''}</div>
             ${r.site_name ? `<div class="text-xs text-slate-600 mt-0.5">${r.site_name}</div>` : ''}
           </div>
@@ -616,10 +693,11 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
         </div>
         <div class="flex gap-2 mt-3">
           <button onclick="loadRecord('${r.estimate_id}')" class="btn-load flex-1 py-2 rounded-xl text-xs font-black">✏️ 불러오기</button>
-          <button onclick="deleteRecord('${r.estimate_id}')" class="btn-delete py-2 px-3 rounded-xl text-xs font-black">🗑️ 삭제</button>
+          ${isDraft ? `<button onclick="confirmRecord('${r.estimate_id}')" class="btn-confirm py-2 px-3 rounded-xl text-xs font-black">✅ 확정</button>` : ''}
+          <button onclick="deleteRecord('${r.estimate_id}')" class="btn-delete py-2 px-3 rounded-xl text-xs font-black">🗑️</button>
         </div>
       </div>
-    `).join('');
+    `;}).join('');
   }
 
   // ── 불러오기 ──
@@ -656,8 +734,20 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     currentNo = header.estimate_id;
     document.getElementById('estimate-no').innerText = currentNo;
     updateLabels(); calculate();
+    const locked = header.estimate_status === 'approved';
     switchTab('form');
-    showToast('✅ 불러왔어요 — ' + estimateId);
+    applyLock(locked);
+    showToast(locked ? '🔒 확정된 견적입니다 — 수정 불가' : '✅ 불러왔어요 — ' + estimateId);
+  }
+
+  // ── 기록에서 바로 확정 ──
+  function confirmRecord(estimateId) {
+    const data = TNS_Storage.load(estimateId);
+    if (!data) return;
+    data.header.estimate_status = 'approved';
+    TNS_Storage.save(data.header, data.lines);
+    renderRecords();
+    showToast('✅ 견적 확정 완료!');
   }
 
   // ── 삭제 ──
@@ -860,6 +950,9 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
         <div style="padding-top:12px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;text-align:center;">
           ${SUPPLIER.name} · ${SUPPLIER.tel} · ${SUPPLIER.addr} · 발행일: ${today}
         </div>
+        <div style="margin-top:8px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:10px;color:#475569;text-align:center;">
+          💳 결제조건 : ${PAYMENT_TERM}
+        </div>
       </div></div>`;
   }
 
@@ -970,6 +1063,9 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
 
         <div style="padding-top:12px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;text-align:center;">
           ${SUPPLIER.name} · ${SUPPLIER.tel} · ${SUPPLIER.addr} · 작성일: ${today}
+        </div>
+        <div style="margin-top:8px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:10px;color:#475569;text-align:center;">
+          💳 결제조건 : ${PAYMENT_TERM}
         </div>
       </div>`;
   }
