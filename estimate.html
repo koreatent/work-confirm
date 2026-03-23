@@ -745,48 +745,33 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       created_at:      now
     };
     let lineNo = 1;
-    const itemLines = Array.from(document.querySelectorAll('.item-card')).map(c => {
-      const rawName = c.querySelector('.item-name').value;
-      const mapped  = TNS_ItemGroupMapping.resolve(rawName) || {};
-      return {
-        estimate_id:       currentNo,
-        line_no:           lineNo++,
-        line_type:         'item',
-        item_name:         rawName,
-        item_raw:          rawName,
-        item_std:          mapped.std          || '',
-        item_category:     mapped.category     || '',
-        item_group:        mapped.group        || '',
-        confidence_score:  mapped.confidence   || '',
-        quantity:          c.querySelector('.qty').value,
-        unit:              [c.querySelector('.unit').value, c.querySelector('.unit2') ? c.querySelector('.unit2').value : ''].filter(Boolean).join(' '),
-        unit_price:        c.querySelector('.price').value,
-        total_amount:      String(num(c.querySelector('.qty').value) * num(c.querySelector('.price').value))
-      };
-    });
+    const itemLines = Array.from(document.querySelectorAll('.item-card')).map(c => ({
+      estimate_id:  currentNo,
+      line_no:      lineNo++,
+      line_type:    'item',
+      item_name:    c.querySelector('.item-name').value,
+      quantity:     c.querySelector('.qty').value,
+      unit:         c.querySelector('.unit').value || '',
+      unit2:        c.querySelector('.unit2') ? c.querySelector('.unit2').value : '',
+      unit_price:   c.querySelector('.price').value,
+      total_amount: String(num(c.querySelector('.qty').value) * num(c.querySelector('.price').value))
+    }));
     const laborLines = Array.from(document.querySelectorAll('.labor-card')).map(c => {
       const p = num(c.querySelector('.labor-people').value);
       const d = num(c.querySelector('.labor-days').value);
       const w = num(c.querySelector('.labor-wage').value);
-      const laborType = c.querySelector('.labor-type').value;
-      const mapped    = TNS_ItemGroupMapping.resolve(laborType) || {};
       return {
-        estimate_id:       currentNo,
-        line_no:           lineNo++,
-        line_type:         'labor',
-        item_name:         laborType,
-        item_raw:          laborType,
-        item_std:          mapped.std          || '',
-        item_category:     mapped.category     || '인건비',
-        item_group:        mapped.group        || '인건비',
-        confidence_score:  mapped.confidence   || '',
-        quantity:          String(p * d),
-        unit:              '인·일',
-        unit_price:        String(w),
-        total_amount:      String(p * d * w),
-        labor_people:      String(p),
-        labor_days:        String(d),
-        labor_wage:        String(w)
+        estimate_id:  currentNo,
+        line_no:      lineNo++,
+        line_type:    'labor',
+        item_name:    c.querySelector('.labor-type').value,
+        quantity:     String(p * d),
+        unit:         '인·일',
+        unit_price:   String(w),
+        total_amount: String(p * d * w),
+        labor_people: String(p),
+        labor_days:   String(d),
+        labor_wage:   String(w)
       };
     });
     const result = TNS_Storage.save(header, [...itemLines, ...laborLines]);
@@ -822,6 +807,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
         </div>
         <div class="flex gap-2 mt-3">
           <button onclick="loadRecord('${r.estimate_id}')" class="btn-load flex-1 py-2 rounded-xl text-xs font-black">✏️ 불러오기</button>
+          <button onclick="pdfFromList('${r.estimate_id}')" class="btn-pdf py-2 px-3 rounded-xl text-xs font-black">📄 PDF</button>
           ${isDraft ? `<button onclick="confirmRecord('${r.estimate_id}')" class="btn-confirm py-2 px-3 rounded-xl text-xs font-black">✅ 확정</button>` : ''}
           <button onclick="deleteRecord('${r.estimate_id}')" class="btn-delete py-2 px-3 rounded-xl text-xs font-black">🗑️</button>
         </div>
@@ -844,7 +830,8 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
         const card = createCard();
         document.getElementById('item-container').appendChild(card);
         card.querySelector('.item-name').value = l.item_name;
-        card.querySelector('.unit').value      = l.unit;
+        card.querySelector('.unit').value      = l.unit || '';
+        if (card.querySelector('.unit2')) card.querySelector('.unit2').value = l.unit2 || '';
         card.querySelector('.qty').value       = l.quantity;
         card.querySelector('.price').value     = l.unit_price;
       } else if (l.line_type === 'labor') {
@@ -886,6 +873,32 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     renderRecords();
   }
 
+  function pdfFromList(estimateId) {
+    const data = TNS_Storage.load(estimateId);
+    if (!data) { showToast('데이터를 불러올 수 없습니다.'); return; }
+    const { header, lines } = data;
+    const client = header.customer_name || '미정';
+    const work   = header.project_name || '';
+    const vatOn  = header.vat_on || false;
+    const isApproved = header.estimate_status === 'approved';
+    let supply = 0;
+    const items = lines.filter(l => l.line_type === 'item').map(l => {
+      const qty = num(l.quantity), price = num(l.unit_price), amt = qty * price;
+      supply += amt;
+      return { name: l.item_name, spec: l.unit||'', unit: l.unit2||'', qty, price, amt };
+    });
+    const labors = lines.filter(l => l.line_type === 'labor').map(l => {
+      const p = num(l.labor_people), d = num(l.labor_days), w = num(l.labor_wage);
+      const amt = p * d * w; supply += amt;
+      return { type: l.item_name, people: p, days: d, wage: w, amt };
+    });
+    const vatAmt = vatOn ? Math.floor(supply * 0.1) : 0;
+    const total  = vatOn ? supply + vatAmt : supply;
+    const today  = new Date().toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric'});
+    const btn = event.target;
+    makePDF(buildEstimateHTML(isApproved, { client, work, vatOn, items, labors, supply, vatAmt, total, today }), `${estimateId}_${client}_견적서.pdf`, btn);
+  }
+
 
   // ── 문서 공통 데이터 ──
   function getDocData() {
@@ -896,12 +909,13 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     let supply = 0;
     const items = Array.from(document.querySelectorAll('.item-card')).map(c => {
       const name = c.querySelector('.item-name').value || '-';
-      const unit = c.querySelector('.unit').value || '';
+      const spec = c.querySelector('.unit').value || '';
+      const unit = c.querySelector('.unit2') ? (c.querySelector('.unit2').value || '') : '';
       const qty  = num(c.querySelector('.qty').value);
       const price= num(c.querySelector('.price').value);
       const amt  = qty * price;
       supply += amt;
-      return { name, unit, qty, price, amt, isLabor: false };
+      return { name, spec, unit, qty, price, amt, isLabor: false };
     });
 
     const labors = Array.from(document.querySelectorAll('.labor-card')).map(c => {
@@ -925,7 +939,8 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     const itemRows = items.map(it => `
       <tr>
         <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;">${it.name}</td>
-        <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;text-align:center;">${it.unit}</td>
+        <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;text-align:center;">${it.spec||''}</td>
+        <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;text-align:center;">${it.unit||''}</td>
         <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;text-align:right;">${it.qty}</td>
         <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;text-align:right;">${fmt(it.price)}</td>
         <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;text-align:right;font-weight:700;">${fmt(it.amt)}</td>
@@ -934,7 +949,8 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     const laborRows = (labors || []).map(lb => `
       <tr>
         <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;">${lb.type}</td>
-        <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:10px;height:26px;text-align:center;">${lb.people}인×${lb.days}일</td>
+        <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:10px;height:26px;text-align:center;">${lb.people}인</td>
+        <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:10px;height:26px;text-align:center;">${lb.days}일</td>
         <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;text-align:right;">${lb.people * lb.days}</td>
         <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;text-align:right;">${fmt(lb.wage)}</td>
         <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;text-align:right;font-weight:700;">${fmt(lb.amt)}</td>
@@ -964,12 +980,12 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       </div>`;
   }
 
-  function buildEstimateHTML(confirmed) {
-    const { client, work, vatOn, items, labors, supply, vatAmt, total, today } = getDocData();
+  function buildEstimateHTML(confirmed, extData) {
+    const { client, work, vatOn, items, labors, supply, vatAmt, total, today } = extData || getDocData();
     const rows = buildRows(items, labors);
 
     return `
-      <div style="width:210mm;min-height:297mm;display:flex;align-items:flex-start;justify-content:center;box-sizing:border-box;background:#fff;position:relative;"><div style="width:190mm;padding:12mm 10mm 10mm 10mm;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;">
+      <div style="width:210mm;min-height:297mm;display:flex;align-items:flex-start;justify-content:center;box-sizing:border-box;background:#fff;position:relative;margin:0 auto;"><div style="width:190mm;padding:12mm 10mm 10mm 10mm;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;">
         ${confirmed ? buildConfirmedBadge() : ''}
         <div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:3px solid #0f172a;">
           <div style="font-size:10px;color:#64748b;letter-spacing:3px;margin-bottom:6px;font-weight:700;">한국천막앵글상사</div>
@@ -1019,29 +1035,29 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
                 </tr>
                 <tr style="height:28px;">
                   <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:10px;white-space:nowrap;">사업자번호</td>
-                  <td colspan="3" style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;white-space:nowrap;">${SUPPLIER.bizNo}</td>
+                  <td colspan="3" style="border:1px solid #cbd5e1;padding:5px 10px;font-size:11px;white-space:nowrap;text-align:center;">${SUPPLIER.bizNo}</td>
                 </tr>
                 <tr style="height:48px;">
                   <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">상 호</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;word-break:keep-all;">${SUPPLIER.name}</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 10px;font-size:11px;word-break:keep-all;text-align:center;">${SUPPLIER.name}</td>
                   <td style="border:1px solid #cbd5e1;padding:5px 4px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;text-align:center;">성명</td>
                   ${buildSupplierCell()}
                 </tr>
                 <tr style="height:28px;">
                   <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">주 소</td>
-                  <td colspan="3" style="border:1px solid #cbd5e1;padding:5px 7px;font-size:10px;word-break:break-all;">${SUPPLIER.addr}</td>
+                  <td colspan="3" style="border:1px solid #cbd5e1;padding:5px 10px;font-size:10px;word-break:break-all;text-align:center;">${SUPPLIER.addr}</td>
                 </tr>
                 <tr style="height:28px;">
                   <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">업 태</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${SUPPLIER.bizType}</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;text-align:center;">${SUPPLIER.bizType}</td>
                   <td style="border:1px solid #cbd5e1;padding:5px 4px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;text-align:center;">종목</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:10px;word-break:keep-all;">${SUPPLIER.bizItem}</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:10px;word-break:keep-all;text-align:center;">${SUPPLIER.bizItem}</td>
                 </tr>
                 <tr style="height:28px;">
                   <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">TEL</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;white-space:nowrap;">${SUPPLIER.tel}</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;white-space:nowrap;text-align:center;">${SUPPLIER.tel}</td>
                   <td style="border:1px solid #cbd5e1;padding:5px 4px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;text-align:center;">FAX</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;white-space:nowrap;">${SUPPLIER.fax}</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;white-space:nowrap;text-align:center;">${SUPPLIER.fax}</td>
                 </tr>
                 <tr style="height:24px;">
                   <td colspan="4" style="border:1px solid #cbd5e1;padding:5px 7px;font-size:10px;color:#475569;">
@@ -1065,6 +1081,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
             <tr style="background:#0f172a;color:white;">
               <th style="padding:8px 8px;font-size:11px;text-align:left;font-weight:700;">품명</th>
               <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;">규격</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;">단위</th>
               <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">수량</th>
               <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">단가</th>
               <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">금액</th>
@@ -1099,7 +1116,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     const rows = buildRows(items, labors);
 
     return `
-      <div style="width:210mm;min-height:297mm;display:flex;align-items:flex-start;justify-content:center;box-sizing:border-box;background:#fff;position:relative;"><div style="width:190mm;padding:12mm 10mm 10mm 10mm;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;">
+      <div style="width:210mm;min-height:297mm;display:flex;align-items:flex-start;justify-content:center;box-sizing:border-box;background:#fff;position:relative;margin:0 auto;"><div style="width:190mm;padding:12mm 10mm 10mm 10mm;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;">
         ${confirmed ? buildConfirmedBadge() : ''}
         <div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:3px solid #0f172a;">
           <div style="font-size:10px;color:#64748b;letter-spacing:3px;margin-bottom:6px;font-weight:700;">한국천막앵글상사</div>
@@ -1123,23 +1140,23 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
                 </tr>
                 <tr style="height:48px;">
                   <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">상 호</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;word-break:keep-all;">${SUPPLIER.name}</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 10px;font-size:11px;word-break:keep-all;text-align:center;">${SUPPLIER.name}</td>
                   <td style="border:1px solid #cbd5e1;padding:5px 4px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;text-align:center;">성명</td>
                   ${buildSupplierCell()}
                 </tr>
                 <tr style="height:28px;">
                   <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:10px;white-space:nowrap;">사업자번호</td>
-                  <td colspan="3" style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;white-space:nowrap;">${SUPPLIER.bizNo}</td>
+                  <td colspan="3" style="border:1px solid #cbd5e1;padding:5px 10px;font-size:11px;white-space:nowrap;text-align:center;">${SUPPLIER.bizNo}</td>
                 </tr>
                 <tr style="height:28px;">
                   <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">주 소</td>
-                  <td colspan="3" style="border:1px solid #cbd5e1;padding:5px 7px;font-size:10px;word-break:break-all;">${SUPPLIER.addr}</td>
+                  <td colspan="3" style="border:1px solid #cbd5e1;padding:5px 10px;font-size:10px;word-break:break-all;text-align:center;">${SUPPLIER.addr}</td>
                 </tr>
                 <tr style="height:28px;">
                   <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">TEL</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;white-space:nowrap;">${SUPPLIER.tel}</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;white-space:nowrap;text-align:center;">${SUPPLIER.tel}</td>
                   <td style="border:1px solid #cbd5e1;padding:5px 4px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;text-align:center;">FAX</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;white-space:nowrap;">${SUPPLIER.fax}</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;white-space:nowrap;text-align:center;">${SUPPLIER.fax}</td>
                 </tr>
               </table>
             </td>
@@ -1177,6 +1194,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
             <tr style="background:#0f172a;color:white;">
               <th style="padding:8px 8px;font-size:11px;text-align:left;font-weight:700;">품명</th>
               <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;">규격</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;">단위</th>
               <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">수량</th>
               <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">단가</th>
               <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">금액</th>
@@ -1222,7 +1240,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;900&display=swap" rel="stylesheet">
       <style>
         *{font-family:'Noto Sans KR',sans-serif;box-sizing:border-box;}
-        body{margin:0;padding:0;background:#fff;}
+        body{margin:0;padding:0;background:#fff;display:flex;justify-content:center;}
         td,th{vertical-align:middle !important;}
         img{display:block !important;visibility:visible !important;max-width:100%;max-height:100%;}
       </style>
@@ -1237,7 +1255,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
         filename,
         pagebreak: { mode: ['css', 'legacy'] },
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0, windowWidth: 794, logging: false },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0, windowWidth: 900, logging: false },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       }).from(wrapper).save().then(() => {
         showToast('📄 PDF 저장 완료!\n파일 앱에서 확인하세요.');
