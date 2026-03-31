@@ -3,9 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>TNS 견적 v2.1</title>
+  <title>TNS 견적 v2.2</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <style>
+    /* ── 인쇄 시: 화면 숨기고 pdf-root만 출력 ── */
+    @media print {
+      body > *:not(#pdf-root) { display: none !important; }
+      #pdf-root { display: block !important; }
+      @page { size: A4; margin: 10mm; }
+    }
+    /* ── 화면 표시 시: pdf-root 숨김 ── */
+    #pdf-root { display: none; }
+  </style>
   <style>
     * { font-family: 'Noto Sans KR', sans-serif; }
     body {
@@ -107,30 +117,6 @@
       transition: all 0.2s ease;
     }
 
-
-    /* ── PDF 전용 영역 ── */
-    #pdf-root {
-      display: none;
-    }
-    @media print {
-      body > *:not(#pdf-root) { display: none !important; }
-      #pdf-root {
-        display: block !important;
-        width: 794px;
-        margin: 0;
-        padding: 0;
-        background: #fff;
-        font-family: 'Noto Sans KR', sans-serif;
-      }
-      @page {
-        size: A4;
-        margin: 10mm;
-      }
-      .pdf-page-break {
-        page-break-before: always;
-      }
-    }
-
     /* ── 순서 변경 ── */
     .sort-handle {
       cursor: grab;
@@ -218,7 +204,6 @@
     }
     .status-draft    { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
     .status-approved { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
-    .status-autosave { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
     #records-count {
       background: #0f172a;
       color: #ffffff;
@@ -250,7 +235,8 @@
 </head>
 <body class="pb-32">
 
-<div id="pdf-root"></div>
+<!-- PDF 전용 영역 (화면에선 숨김, 인쇄 시만 표시) -->
+<div id="pdf-root" style="width:794px;margin:0 auto;padding:0;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;background:#fff;"></div>
 
 <div id="modal-overlay">
   <div id="modal-box">
@@ -264,7 +250,7 @@
   <div class="flex justify-between items-center mb-3">
     <div>
       <p class="text-[10px] font-bold" style="color:#94a3b8;">한국천막앵글상사</p>
-      <h1 class="font-black text-lg tracking-tight" style="color:#0f172a;">TNS 견적 <span class="text-xs font-normal" style="color:#94a3b8;">v2.1</span></h1>
+      <h1 class="font-black text-lg tracking-tight" style="color:#0f172a;">TNS 견적 <span class="text-xs font-normal" style="color:#94a3b8;">v2.2</span></h1>
       <p class="text-[10px] font-bold" style="color:#0f172a;" id="estimate-no">번호 생성 중...</p>
     </div>
     <span class="text-[10px] px-2 py-0.5 rounded-full font-bold" style="background:#0f172a;color:#ffffff;">LIVE</span>
@@ -322,10 +308,8 @@
     <div class="grid grid-cols-2 gap-2">
       <button onclick="addItem()" class="btn-add py-3 rounded-xl font-black text-[11px] shadow-md">+ 품목 추가</button>
       <button onclick="addLaborItem()" class="btn-labor py-3 rounded-xl font-black text-[11px] shadow-md">+ 인건비 추가</button>
-      <button onclick="saveEstimate('draft')" class="btn-save py-3 rounded-xl font-black text-[11px] shadow-md">💾 견적 저장</button>
-      <button onclick="saveEstimate('approved')" class="btn-confirm py-3 rounded-xl font-black text-[11px] shadow-md">✅ 견적 확정</button>
-      <button onclick="generatePDF()" class="btn-pdf py-3 rounded-xl font-black text-[11px] shadow-md col-span-2">견적서 PDF</button>
-
+      <button onclick="saveEstimate('draft')" class="btn-save py-3 rounded-xl font-black text-[11px] shadow-md">저장</button>
+      <button onclick="sendEstimate()" class="btn-pdf py-3 rounded-xl font-black text-[11px] shadow-md">견적서 보내기</button>
     </div>
   </footer>
 </div>
@@ -592,12 +576,12 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     document.querySelectorAll('.tab-btn').forEach((b,i) => {
       b.classList.toggle('active', (i===0 && tab==='form') || (i===1 && tab==='records'));
     });
-    // 작성 탭으로 직접 클릭 시 락 해제 + 새 견적 초기화
+    // 작성 탭으로 직접 클릭 시 락 해제 (불러오기 경유 아닌 경우)
     if (tab === 'form' && isLocked) {
       applyLock(false);
-      clearAutoSave();
-      resetFormForNewEstimate();
       showToast('✏️ 새 견적 작성 모드');
+      currentNo = getEstimateNo();
+      document.getElementById('estimate-no').innerText = currentNo;
     }
     if (tab === 'records') renderRecords();
   }
@@ -865,73 +849,85 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     });
   })();
 
-  // ── 자동저장 (30초) — TNS_Storage에 autosave 상태로 저장 ──
-  const AUTO_SAVE_KEY = 'tns_autosave_id'; // 현재 자동저장 estimate_id 추적용
+  // ── 자동저장 (30초) ──
+  const AUTO_SAVE_KEY = 'tns_autosave';
 
   function autoSave() {
     if (isLocked) return;
-    // 입력 내용이 있을 때만 저장 (품목 1개 이상이거나 거래처/공사명 입력된 경우)
-    const hasContent = document.getElementById('client-name').value.trim() ||
-                       document.getElementById('work-name').value.trim() ||
-                       document.querySelectorAll('#item-container .item-card, #item-container .labor-card').length > 1 ||
-                       (document.querySelectorAll('#item-container .item-card').length === 1 &&
-                        document.querySelector('.item-name') && document.querySelector('.item-name').value.trim());
-    if (!hasContent) return;
-
-    const now = new Date().toISOString();
-    const header = {
-      estimate_id:     currentNo,
-      estimate_date:   now.slice(0, 10),
-      customer_name:   document.getElementById('client-name').value || '(임시저장)',
-      site_name:       document.getElementById('work-name').value || '',
-      project_name:    document.getElementById('work-type').value || '',
-      estimate_status: 'autosave',
-      total_amount:    document.getElementById('total-price').innerText,
-      vat_on:          document.getElementById('vat-toggle').checked,
-      created_at:      now
-    };
-    let lineNo = 1;
-    const itemLines = Array.from(document.querySelectorAll('.item-card')).map(c => ({
-      estimate_id:  currentNo,
-      line_no:      lineNo++,
-      line_type:    'item',
-      item_name:    c.querySelector('.item-name').value,
-      quantity:     c.querySelector('.qty').value,
-      unit:         c.querySelector('.unit').value || '',
-      unit2:        c.querySelector('.unit2') ? c.querySelector('.unit2').value : '',
-      unit_price:   c.querySelector('.price').value,
-      total_amount: String(num(c.querySelector('.qty').value) * num(c.querySelector('.price').value))
-    }));
-    const laborLines = Array.from(document.querySelectorAll('.labor-card')).map(c => {
-      const p = num(c.querySelector('.labor-people').value);
-      const d = num(c.querySelector('.labor-days').value);
-      const w = num(c.querySelector('.labor-wage').value);
-      return {
-        estimate_id:  currentNo,
-        line_no:      lineNo++,
-        line_type:    'labor',
-        item_name:    c.querySelector('.labor-type').value,
-        quantity:     String(p * d),
-        unit:         '인·일',
-        unit_price:   String(w),
-        total_amount: String(p * d * w),
-        labor_people: String(p),
-        labor_days:   String(d),
-        labor_wage:   String(w)
-      };
+    const lines = Array.from(document.querySelectorAll('#item-container > .item-card, #item-container > .labor-card')).map(c => {
+      if (c.classList.contains('item-card')) {
+        return {
+          line_type:  'item',
+          item_name:  c.querySelector('.item-name').value,
+          quantity:   c.querySelector('.qty').value,
+          unit:       c.querySelector('.unit').value || '',
+          unit2:      c.querySelector('.unit2') ? c.querySelector('.unit2').value : '',
+          unit_price: c.querySelector('.price').value
+        };
+      } else {
+        return {
+          line_type:    'labor',
+          item_name:    c.querySelector('.labor-type').value,
+          labor_people: c.querySelector('.labor-people').value,
+          labor_days:   c.querySelector('.labor-days').value,
+          labor_wage:   c.querySelector('.labor-wage').value
+        };
+      }
     });
+    const snap = {
+      estimate_id:   currentNo,
+      work_type:     document.getElementById('work-type').value,
+      client_name:   document.getElementById('client-name').value,
+      work_name:     document.getElementById('work-name').value,
+      vat_on:        document.getElementById('vat-toggle').checked,
+      statement_on:  document.getElementById('statement-toggle').checked,
+      lines,
+      saved_at:      new Date().toISOString()
+    };
+    try { localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(snap)); } catch(e) {}
+  }
+
+  function restoreAutoSave() {
     try {
-      TNS_Storage.save(header, [...itemLines, ...laborLines]);
-      localStorage.setItem(AUTO_SAVE_KEY, currentNo);
+      const raw = localStorage.getItem(AUTO_SAVE_KEY);
+      if (!raw) return;
+      const snap = JSON.parse(raw);
+      if (!snap || !snap.lines || snap.lines.length === 0) return;
+      document.getElementById('work-type').value   = snap.work_type || '어닝';
+      document.getElementById('client-name').value = snap.client_name || '';
+      document.getElementById('work-name').value   = snap.work_name || '';
+      document.getElementById('vat-toggle').checked = snap.vat_on || false;
+      document.getElementById('statement-toggle').checked = snap.statement_on || false;
+      document.getElementById('item-container').innerHTML = '';
+      snap.lines.forEach(l => {
+        if (l.line_type === 'item') {
+          const card = createCard();
+          document.getElementById('item-container').appendChild(card);
+          card.querySelector('.item-name').value = l.item_name;
+          card.querySelector('.unit').value      = l.unit || '';
+          if (card.querySelector('.unit2')) card.querySelector('.unit2').value = l.unit2 || '';
+          card.querySelector('.qty').value       = l.quantity;
+          card.querySelector('.price').value     = l.unit_price;
+        } else {
+          const card = createLaborCard();
+          document.getElementById('item-container').appendChild(card);
+          card.querySelector('.labor-type').value   = l.item_name;
+          card.querySelector('.labor-people').value = l.labor_people || '';
+          card.querySelector('.labor-days').value   = l.labor_days   || '';
+          card.querySelector('.labor-wage').value   = l.labor_wage   || '';
+        }
+      });
+      if (snap.estimate_id) {
+        currentNo = snap.estimate_id;
+        document.getElementById('estimate-no').innerText = currentNo;
+      }
+      updateLabels(); calculate();
+      showToast('🔄 임시저장 복구됨');
     } catch(e) {}
   }
 
   function clearAutoSave() {
-    try {
-      const id = localStorage.getItem(AUTO_SAVE_KEY);
-      if (id) TNS_Storage.delete(id);
-      localStorage.removeItem(AUTO_SAVE_KEY);
-    } catch(e) {}
+    try { localStorage.removeItem(AUTO_SAVE_KEY); } catch(e) {}
   }
 
   // 자동저장 타이머 시작
@@ -1037,7 +1033,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     });
     const result = TNS_Storage.save(header, [...itemLines, ...laborLines]);
     if (result.success) {
-      try { localStorage.removeItem(AUTO_SAVE_KEY); } catch(e) {}
+      clearAutoSave();
       showToast(status === 'approved' ? '✅ 견적 확정 완료!' : '💾 저장 완료!');
     }
     else showToast('❌ 저장 실패');
@@ -1053,10 +1049,9 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       return;
     }
     list.innerHTML = rs.map(r => {
-      const isAutosave = r.estimate_status === 'autosave';
-      const isDraft    = r.estimate_status === 'draft';
-      const badgeClass = isAutosave ? 'status-autosave' : isDraft ? 'status-draft' : 'status-approved';
-      const badgeText  = isAutosave ? '🔄 임시저장' : isDraft ? '작성중' : '확정';
+      const isDraft    = r.estimate_status !== 'approved';
+      const badgeClass = isDraft ? 'status-draft' : 'status-approved';
+      const badgeText  = isDraft ? '작성중' : '확정';
       return `
       <div class="record-card p-4">
         <div class="flex justify-between items-start">
@@ -1072,7 +1067,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
         </div>
         <div class="flex gap-2 mt-3">
           <button onclick="loadRecord('${r.estimate_id}')" class="btn-load flex-1 py-2 rounded-xl text-xs font-black">✏️ 불러오기</button>
-          ${!isAutosave ? `<button onclick="pdfFromList('${r.estimate_id}')" class="btn-pdf py-2 px-3 rounded-xl text-xs font-black">📄 PDF</button>` : ''}
+          <button onclick="pdfFromList('${r.estimate_id}')" class="btn-pdf py-2 px-3 rounded-xl text-xs font-black">📄 보내기</button>
           ${isDraft ? `<button onclick="confirmRecord('${r.estimate_id}')" class="btn-confirm py-2 px-3 rounded-xl text-xs font-black">✅ 확정</button>` : ''}
           <button onclick="deleteRecord('${r.estimate_id}')" class="btn-delete py-2 px-3 rounded-xl text-xs font-black">🗑️</button>
         </div>
@@ -1138,6 +1133,15 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     renderRecords();
   }
 
+  // ── 견적서 보내기 (현재 작성 중인 것) ──
+  function sendEstimate() {
+    const { client, work, vatOn, items, labors, supply, vatAmt, total, today } = getDocData();
+    const statementOn = document.getElementById('statement-toggle').checked;
+    renderPdfRoot(isLocked, { client, work, vatOn, items, labors, supply, vatAmt, total, today }, statementOn);
+    setTimeout(() => { window.print(); }, 100);
+  }
+
+  // ── 기록에서 보내기 ──
   function pdfFromList(estimateId) {
     const data = TNS_Storage.load(estimateId);
     if (!data) { showToast('데이터를 불러올 수 없습니다.'); return; }
@@ -1160,8 +1164,14 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     const vatAmt = vatOn ? Math.floor(supply * 0.1) : 0;
     const total  = vatOn ? supply + vatAmt : supply;
     const today  = new Date().toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric'});
-    const btn = event.target.closest ? (event.target.closest('button') || event.target) : event.target;
-    makePDF(buildEstimateHTML(isApproved, { estimateId, client, work, vatOn, items, labors, supply, vatAmt, total, today }), `${estimateId}_${client}_견적서.pdf`, btn);
+    renderPdfRoot(isApproved, { client, work, vatOn, items, labors, supply, vatAmt, total, today }, false);
+    setTimeout(() => { window.print(); }, 100);
+  }
+
+  // ── #pdf-root 렌더링 ──
+  function renderPdfRoot(confirmed, data, statementOn) {
+    const root = document.getElementById('pdf-root');
+    root.innerHTML = buildEstimateHTML(confirmed, data) + (statementOn ? buildStatementHTML(confirmed, data) : '');
   }
 
 
@@ -1236,7 +1246,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
 
   function buildConfirmedBadge() {
     return `
-      <div style="position:absolute;top:40px;right:20px;z-index:10;
+      <div style="position:absolute;top:14mm;right:12mm;z-index:10;
                   border:3px solid #dc2626;border-radius:6px;
                   padding:4px 10px;transform:rotate(-12deg);
                   background:rgba(255,255,255,0.85);">
@@ -1247,11 +1257,10 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
 
   function buildEstimateHTML(confirmed, extData) {
     const { client, work, vatOn, items, labors, supply, vatAmt, total, today } = extData || getDocData();
-    const estimateId = (extData && extData.estimateId) ? extData.estimateId : currentNo;
     const rows = buildRows(items, labors);
 
     return `
-      <div style="width:714px;padding:40px 40px 30px 40px;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;margin:0;">
+      <div style="width:794px;min-height:1123px;box-sizing:border-box;background:#fff;position:relative;margin:0 auto;padding:40px 36px 36px 36px;font-family:'Noto Sans KR',sans-serif;color:#1e293b;">
         ${confirmed ? buildConfirmedBadge() : ''}
         <div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:3px solid #0f172a;">
           <div style="font-size:10px;color:#64748b;letter-spacing:3px;margin-bottom:6px;font-weight:700;">한국천막앵글상사</div>
@@ -1270,7 +1279,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
                 </tr>
                 <tr style="height:28px;">
                   <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">견적번호</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${estimateId}</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${currentNo}</td>
                 </tr>
                 <tr style="height:28px;">
                   <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">견적일</td>
@@ -1344,21 +1353,21 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
 
         <table style="width:100%;border-collapse:collapse;margin-bottom:10px;table-layout:fixed;page-break-inside:auto;">
           <colgroup>
-            <col style="width:28%;">
-            <col style="width:12%;">
-            <col style="width:12%;">
-            <col style="width:10%;">
-            <col style="width:17%;">
+            <col style="width:32%;">
+            <col style="width:11%;">
+            <col style="width:9%;">
+            <col style="width:9%;">
+            <col style="width:18%;">
             <col style="width:21%;">
           </colgroup>
           <thead>
             <tr style="background:#0f172a;color:white;">
-              <th style="padding:8px 8px;font-size:11px;text-align:left;font-weight:700;">품명</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;">규격</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;">단위</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">수량</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">단가</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">금액</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:left;font-weight:700;border:1px solid #0f172a;">품명</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;border:1px solid #0f172a;">규격</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;border:1px solid #0f172a;">단위</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;border:1px solid #0f172a;">수량</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;border:1px solid #0f172a;">단가</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;border:1px solid #0f172a;">금액</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -1387,11 +1396,10 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
 
   function buildStatementHTML(confirmed, extData) {
     const { client, work, vatOn, items, labors, supply, vatAmt, total, today } = extData || getDocData();
-    const estimateId = (extData && extData.estimateId) ? extData.estimateId : currentNo;
     const rows = buildRows(items, labors);
 
     return `
-      <div style="width:714px;padding:40px 40px 30px 40px;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;margin:0;">
+      <div style="width:794px;min-height:1123px;box-sizing:border-box;background:#fff;position:relative;margin:0 auto;padding:40px 36px 36px 36px;font-family:'Noto Sans KR',sans-serif;color:#1e293b;page-break-before:always;">
         ${confirmed ? buildConfirmedBadge() : ''}
         <div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:3px solid #0f172a;">
           <div style="font-size:10px;color:#64748b;letter-spacing:3px;margin-bottom:6px;font-weight:700;">한국천막앵글상사</div>
@@ -1453,7 +1461,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
                 </tr>
                 <tr style="height:28px;">
                   <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">문서번호</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${estimateId}</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${currentNo}</td>
                 </tr>
                 <tr style="height:28px;">
                   <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">공사명</td>
@@ -1466,21 +1474,21 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
 
         <table style="width:100%;border-collapse:collapse;margin-bottom:10px;table-layout:fixed;page-break-inside:auto;">
           <colgroup>
-            <col style="width:28%;">
-            <col style="width:12%;">
-            <col style="width:12%;">
-            <col style="width:10%;">
-            <col style="width:17%;">
+            <col style="width:32%;">
+            <col style="width:11%;">
+            <col style="width:9%;">
+            <col style="width:9%;">
+            <col style="width:18%;">
             <col style="width:21%;">
           </colgroup>
           <thead>
             <tr style="background:#0f172a;color:white;">
-              <th style="padding:8px 8px;font-size:11px;text-align:left;font-weight:700;">품명</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;">규격</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;">단위</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">수량</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">단가</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">금액</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:left;font-weight:700;border:1px solid #0f172a;">품명</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;border:1px solid #0f172a;">규격</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;border:1px solid #0f172a;">단위</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;border:1px solid #0f172a;">수량</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;border:1px solid #0f172a;">단가</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;border:1px solid #0f172a;">금액</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -1507,45 +1515,6 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       </div>`;
   }
 
-  function makePDF(htmlContent, filename, btn) {
-    const origText = btn ? btn.innerText : '';
-    if (btn) { btn.innerText = '⏳ 생성 중...'; btn.disabled = true; }
-
-    // pdf-root에 콘텐츠 렌더링
-    const pdfRoot = document.getElementById('pdf-root');
-    pdfRoot.innerHTML = htmlContent;
-
-    // 브라우저 인쇄 시 파일명 = document.title
-    const origTitle = document.title;
-    document.title = filename;
-
-    // 폰트 로드 대기 후 인쇄
-    setTimeout(() => {
-      window.print();
-      // 인쇄창 닫힌 후 복구
-      setTimeout(() => {
-        pdfRoot.innerHTML = '';
-        document.title = origTitle;
-        if (btn) { btn.innerText = origText; btn.disabled = false; }
-      }, 1000);
-    }, 500);
-  }
-
-  // ── PDF 생성 ──
-  function generatePDF() {
-    const btn = event.currentTarget;
-    const { client } = getDocData();
-    const statementOn = document.getElementById('statement-toggle').checked;
-    if (statementOn) {
-      const extD = Object.assign(getDocData(), {estimateId: currentNo});
-      const combined = buildEstimateHTML(isLocked, extD) + '<div class="pdf-page-break"></div>' + buildStatementHTML(isLocked, extD);
-      makePDF(combined, `${currentNo}_${client}_견적서+명세서.pdf`, btn);
-    } else {
-      makePDF(buildEstimateHTML(isLocked, Object.assign(getDocData(), {estimateId: currentNo})), `${currentNo}_${client}_견적서.pdf`, btn);
-    }
-  }
-
-
 
   // ── 모달 ──
   function showToast(m) {
@@ -1567,8 +1536,15 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     }, 80);
   });
 
-  // ── 앱 시작 — 항상 새 견적 화면 ──
-  addItem();
+  // ── 앱 시작 ──
+  const _hasSave = (function() {
+    try { return !!localStorage.getItem(AUTO_SAVE_KEY); } catch(e) { return false; }
+  })();
+  if (_hasSave) {
+    restoreAutoSave();
+  } else {
+    addItem();
+  }
 </script>
 </body>
 </html>
