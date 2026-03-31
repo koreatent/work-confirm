@@ -1136,7 +1136,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     const total  = vatOn ? supply + vatAmt : supply;
     const today  = new Date().toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric'});
     const btn = event.target;
-    makePDF(buildEstimateHTML(isApproved, { client, work, vatOn, items, labors, supply, vatAmt, total, today }), `${estimateId}_${client}_견적서.pdf`, btn);
+    makePDF(buildEstimateHTML(isApproved, { estimateId, client, work, vatOn, items, labors, supply, vatAmt, total, today }), `${estimateId}_${client}_견적서.pdf`, btn);
   }
 
 
@@ -1222,10 +1222,11 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
 
   function buildEstimateHTML(confirmed, extData) {
     const { client, work, vatOn, items, labors, supply, vatAmt, total, today } = extData || getDocData();
+    const estimateId = (extData && extData.estimateId) ? extData.estimateId : currentNo;
     const rows = buildRows(items, labors);
 
     return `
-      <div style="width:860px;min-height:1123px;display:flex;align-items:flex-start;justify-content:center;box-sizing:border-box;background:#fff;position:relative;margin:0 auto;"><div style="width:820px;padding:36px 20px 20px 20px;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;">
+      <div style="width:860px;box-sizing:border-box;background:#fff;position:relative;margin:0 auto;"><div style="width:820px;padding:36px 20px 20px 20px;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;">
         ${confirmed ? buildConfirmedBadge() : ''}
         <div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:3px solid #0f172a;">
           <div style="font-size:10px;color:#64748b;letter-spacing:3px;margin-bottom:6px;font-weight:700;">한국천막앵글상사</div>
@@ -1244,7 +1245,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
                 </tr>
                 <tr style="height:28px;">
                   <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">견적번호</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${currentNo}</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${estimateId}</td>
                 </tr>
                 <tr style="height:28px;">
                   <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">견적일</td>
@@ -1351,12 +1352,13 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       </div></div>`;
   }
 
-  function buildStatementHTML(confirmed) {
-    const { client, work, vatOn, items, labors, supply, vatAmt, total, today } = getDocData();
+  function buildStatementHTML(confirmed, extData) {
+    const { client, work, vatOn, items, labors, supply, vatAmt, total, today } = extData || getDocData();
+    const estimateId = (extData && extData.estimateId) ? extData.estimateId : currentNo;
     const rows = buildRows(items, labors);
 
     return `
-      <div style="width:860px;min-height:1123px;display:flex;align-items:flex-start;justify-content:center;box-sizing:border-box;background:#fff;position:relative;margin:0 auto;"><div style="width:820px;padding:36px 20px 20px 20px;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;">
+      <div style="width:860px;box-sizing:border-box;background:#fff;position:relative;margin:0 auto;"><div style="width:820px;padding:36px 20px 20px 20px;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;">
         ${confirmed ? buildConfirmedBadge() : ''}
         <div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:3px solid #0f172a;">
           <div style="font-size:10px;color:#64748b;letter-spacing:3px;margin-bottom:6px;font-weight:700;">한국천막앵글상사</div>
@@ -1418,7 +1420,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
                 </tr>
                 <tr style="height:28px;">
                   <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">문서번호</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${currentNo}</td>
+                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${estimateId}</td>
                 </tr>
                 <tr style="height:28px;">
                   <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">공사명</td>
@@ -1470,7 +1472,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     btn.disabled = true;
 
     const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:860px;height:1123px;border:none;opacity:0;pointer-events:none;';
+    iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:860px;border:none;opacity:0;pointer-events:none;';
     document.body.appendChild(iframe);
 
     const iDoc = iframe.contentDocument || iframe.contentWindow.document;
@@ -1516,10 +1518,11 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     const { client } = getDocData();
     const statementOn = document.getElementById('statement-toggle').checked;
     if (statementOn) {
-      const combined = buildEstimateHTML(isLocked) + buildStatementHTML(isLocked);
+      const extD = Object.assign(getDocData(), {estimateId: currentNo});
+      const combined = buildEstimateHTML(isLocked, extD) + buildStatementHTML(isLocked, extD);
       makePDF(combined, `${currentNo}_${client}_견적서+명세서.pdf`, btn);
     } else {
-      makePDF(buildEstimateHTML(isLocked), `${currentNo}_${client}_견적서.pdf`, btn);
+      makePDF(buildEstimateHTML(isLocked, Object.assign(getDocData(), {estimateId: currentNo})), `${currentNo}_${client}_견적서.pdf`, btn);
     }
   }
 
