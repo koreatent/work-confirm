@@ -1471,18 +1471,21 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     btn.innerText = '⏳ 생성 중...';
     btn.disabled = true;
 
-    // 캡처 전용 div — body에 직접 삽입, 위치는 화면 밖
+    // 캡처 전용 div — body에 직접 삽입, 화면 위에 투명하게 올림
     const container = document.createElement('div');
     container.style.cssText = [
       'position:fixed',
-      'left:-9999px',
+      'left:0',
       'top:0',
       'width:794px',
       'background:#fff',
       'font-family:Noto Sans KR,sans-serif',
       'box-sizing:border-box',
       'margin:0',
-      'padding:0'
+      'padding:0',
+      'z-index:-1',
+      'opacity:0',
+      'pointer-events:none'
     ].join(';');
     container.innerHTML = htmlContent;
     document.body.appendChild(container);
