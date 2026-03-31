@@ -566,12 +566,12 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     document.querySelectorAll('.tab-btn').forEach((b,i) => {
       b.classList.toggle('active', (i===0 && tab==='form') || (i===1 && tab==='records'));
     });
-    // 작성 탭으로 직접 클릭 시 락 해제 (불러오기 경유 아닌 경우)
+    // 작성 탭으로 직접 클릭 시 락 해제 + 새 견적 초기화
     if (tab === 'form' && isLocked) {
       applyLock(false);
+      clearAutoSave();
+      resetFormForNewEstimate();
       showToast('✏️ 새 견적 작성 모드');
-      currentNo = getEstimateNo();
-      document.getElementById('estimate-no').innerText = currentNo;
     }
     if (tab === 'records') renderRecords();
   }
@@ -882,7 +882,47 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       const raw = localStorage.getItem(AUTO_SAVE_KEY);
       if (!raw) return;
       const snap = JSON.parse(raw);
-      if (!snap || !snap.lines || snap.lines.length === 0) return;
+      if (!snap || !snap.lines || snap.lines.length === 0) { clearAutoSave(); return; }
+
+      // 복구 확인 모달
+      const overlay = document.getElementById('modal-overlay');
+      const msg     = document.getElementById('modal-msg');
+      const okBtn   = document.getElementById('modal-ok');
+
+      msg.innerHTML = '🔄 임시저장된 작업이 있어요.<br><span style="font-size:12px;font-weight:400;color:#475569;">(' + (snap.client_name || '거래처 없음') + ' / ' + (snap.work_name || '공사명 없음') + ')</span>';
+      okBtn.innerText = '복구하기';
+      okBtn.onclick = () => {
+        _doRestore(snap);
+        overlay.classList.remove('show');
+        okBtn.innerText = '확인';
+        okBtn.onclick = closeModal;
+      };
+
+      // 새 견적 버튼 동적 추가
+      let newBtn = document.getElementById('modal-new-btn');
+      if (!newBtn) {
+        newBtn = document.createElement('button');
+        newBtn.id = 'modal-new-btn';
+        newBtn.style.cssText = 'display:block;width:100%;margin-top:8px;background:#f1f5f9;color:#0f172a;border:1px solid #e2e8f0;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;';
+        newBtn.innerText = '새 견적 작성';
+        document.getElementById('modal-box').appendChild(newBtn);
+      }
+      newBtn.style.display = 'block';
+      newBtn.onclick = () => {
+        clearAutoSave();
+        overlay.classList.remove('show');
+        newBtn.style.display = 'none';
+        okBtn.innerText = '확인';
+        okBtn.onclick = closeModal;
+        addItem();
+      };
+
+      overlay.classList.add('show');
+    } catch(e) { clearAutoSave(); }
+  }
+
+  function _doRestore(snap) {
+    try {
       document.getElementById('work-type').value   = snap.work_type || '어닝';
       document.getElementById('client-name').value = snap.client_name || '';
       document.getElementById('work-name').value   = snap.work_name || '';
@@ -912,7 +952,6 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
         document.getElementById('estimate-no').innerText = currentNo;
       }
       updateLabels(); calculate();
-      showToast('🔄 임시저장 복구됨');
     } catch(e) {}
   }
 
