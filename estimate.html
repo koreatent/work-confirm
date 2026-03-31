@@ -107,6 +107,36 @@
       margin-bottom: 10px;
       transition: all 0.2s ease;
     }
+
+    /* ── 순서 변경 ── */
+    .sort-handle {
+      cursor: grab;
+      color: #94a3b8;
+      font-size: 14px;
+      padding: 2px 4px;
+      user-select: none;
+      touch-action: none;
+    }
+    .sort-handle:active { cursor: grabbing; }
+    .btn-move {
+      background: none;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      color: #64748b;
+      font-size: 11px;
+      padding: 2px 6px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .btn-move:active { background: #f1f5f9; }
+    .btn-move:disabled { opacity: 0.25; cursor: default; }
+    .card-dragging {
+      opacity: 0.4;
+      transform: scale(0.98);
+    }
+    .card-dragover {
+      border-top: 3px solid #0f172a !important;
+    }
     .labor-label {
       background: #1e40af;
       color: #ffffff;
@@ -552,8 +582,15 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     div.className = 'item-card p-4';
     div.innerHTML = `
       <div class="flex justify-between items-center mb-2">
-        <span class="item-label">ITEM</span>
-        <button onclick="this.closest('.item-card').remove(); updateLabels(); calculate();" class="text-slate-400 text-sm font-bold hover:text-red-400">✕</button>
+        <div class="flex items-center gap-1">
+          <span class="sort-handle" title="드래그로 순서 변경">⠿</span>
+          <span class="item-label">ITEM</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <button class="btn-move btn-up" onclick="moveCard(this, -1)" title="위로">▲</button>
+          <button class="btn-move btn-dn" onclick="moveCard(this, 1)"  title="아래로">▼</button>
+          <button onclick="this.closest('.item-card').remove(); updateLabels(); calculate();" class="text-slate-400 text-sm font-bold hover:text-red-400 ml-1">✕</button>
+        </div>
       </div>
       <input type="text" placeholder="품명입력" class="item-name w-full border rounded-lg p-2 mb-2 font-bold text-sm">
       <div class="grid grid-cols-2 gap-2 mb-2">
@@ -612,8 +649,15 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     div.dataset.type = 'labor';
     div.innerHTML = `
       <div class="flex justify-between items-center mb-2">
-        <span class="labor-label">인건비</span>
-        <button onclick="this.closest('.labor-card').remove(); updateLabels(); calculate();" class="text-slate-400 text-sm font-bold hover:text-red-400">✕</button>
+        <div class="flex items-center gap-1">
+          <span class="sort-handle" title="드래그로 순서 변경">⠿</span>
+          <span class="labor-label">인건비</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <button class="btn-move btn-up" onclick="moveCard(this, -1)" title="위로">▲</button>
+          <button class="btn-move btn-dn" onclick="moveCard(this, 1)"  title="아래로">▼</button>
+          <button onclick="this.closest('.labor-card').remove(); updateLabels(); calculate();" class="text-slate-400 text-sm font-bold hover:text-red-400 ml-1">✕</button>
+        </div>
       </div>
       <select class="labor-type w-full border rounded-lg p-2 mb-2 font-bold text-sm" style="border-color:#1e40af!important;">
         ${LABOR_TYPES.map(t => `<option>${t}</option>`).join('')}
@@ -674,7 +718,210 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     document.querySelectorAll('.item-card').forEach((c,i) => {
       c.querySelector('.item-label').innerText = `ITEM #${i+1}`;
     });
+    updateMoveButtons();
   }
+
+  // ── 이동 버튼 활성/비활성 ──
+  function updateMoveButtons() {
+    const cards = Array.from(document.querySelectorAll('#item-container > .item-card, #item-container > .labor-card'));
+    cards.forEach((card, i) => {
+      const up = card.querySelector('.btn-up');
+      const dn = card.querySelector('.btn-dn');
+      if (up) up.disabled = (i === 0);
+      if (dn) dn.disabled = (i === cards.length - 1);
+    });
+  }
+
+  // ── ↑↓ 버튼 이동 ──
+  function moveCard(btn, dir) {
+    const card = btn.closest('.item-card, .labor-card');
+    const container = document.getElementById('item-container');
+    const cards = Array.from(container.children);
+    const idx = cards.indexOf(card);
+    const target = idx + dir;
+    if (target < 0 || target >= cards.length) return;
+    if (dir === -1) {
+      container.insertBefore(card, cards[target]);
+    } else {
+      container.insertBefore(card, cards[target].nextSibling);
+    }
+    updateLabels();
+    calculate();
+    card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  // ── 드래그 앤 드롭 (터치 + 마우스) ──
+  (function initDragDrop() {
+    let dragging = null;
+    let placeholder = null;
+
+    function getCard(el) {
+      return el.closest('.item-card, .labor-card');
+    }
+    function getContainer() {
+      return document.getElementById('item-container');
+    }
+
+    // 마우스 드래그
+    document.getElementById('item-container').addEventListener('mousedown', (e) => {
+      if (!e.target.classList.contains('sort-handle')) return;
+      const card = getCard(e.target);
+      if (!card) return;
+      dragging = card;
+      dragging.classList.add('card-dragging');
+      placeholder = document.createElement('div');
+      placeholder.style.cssText = 'height:' + card.offsetHeight + 'px;border:2px dashed #94a3b8;border-radius:12px;margin-bottom:10px;background:#f8fafc;';
+      card.parentNode.insertBefore(placeholder, card.nextSibling);
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      const container = getContainer();
+      const siblings = Array.from(container.children).filter(c => c !== dragging && c !== placeholder);
+      let insertBefore = null;
+      for (const sib of siblings) {
+        const rect = sib.getBoundingClientRect();
+        if (e.clientY < rect.top + rect.height / 2) { insertBefore = sib; break; }
+      }
+      if (insertBefore) container.insertBefore(placeholder, insertBefore);
+      else container.appendChild(placeholder);
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      dragging.classList.remove('card-dragging');
+      placeholder.parentNode.insertBefore(dragging, placeholder);
+      placeholder.remove();
+      placeholder = null;
+      dragging = null;
+      updateLabels();
+      calculate();
+    });
+
+    // 터치 드래그 (iPad)
+    document.getElementById('item-container').addEventListener('touchstart', (e) => {
+      if (!e.target.classList.contains('sort-handle')) return;
+      const card = getCard(e.target);
+      if (!card) return;
+      dragging = card;
+      dragging.classList.add('card-dragging');
+      placeholder = document.createElement('div');
+      placeholder.style.cssText = 'height:' + card.offsetHeight + 'px;border:2px dashed #94a3b8;border-radius:12px;margin-bottom:10px;background:#f8fafc;';
+      card.parentNode.insertBefore(placeholder, card.nextSibling);
+      e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('touchmove', (e) => {
+      if (!dragging) return;
+      const touch = e.touches[0];
+      const container = getContainer();
+      const siblings = Array.from(container.children).filter(c => c !== dragging && c !== placeholder);
+      let insertBefore = null;
+      for (const sib of siblings) {
+        const rect = sib.getBoundingClientRect();
+        if (touch.clientY < rect.top + rect.height / 2) { insertBefore = sib; break; }
+      }
+      if (insertBefore) container.insertBefore(placeholder, insertBefore);
+      else container.appendChild(placeholder);
+      e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('touchend', () => {
+      if (!dragging) return;
+      dragging.classList.remove('card-dragging');
+      placeholder.parentNode.insertBefore(dragging, placeholder);
+      placeholder.remove();
+      placeholder = null;
+      dragging = null;
+      updateLabels();
+      calculate();
+    });
+  })();
+
+  // ── 자동저장 (30초) ──
+  const AUTO_SAVE_KEY = 'tns_autosave';
+
+  function autoSave() {
+    if (isLocked) return;
+    const lines = Array.from(document.querySelectorAll('#item-container > .item-card, #item-container > .labor-card')).map(c => {
+      if (c.classList.contains('item-card')) {
+        return {
+          line_type:  'item',
+          item_name:  c.querySelector('.item-name').value,
+          quantity:   c.querySelector('.qty').value,
+          unit:       c.querySelector('.unit').value || '',
+          unit2:      c.querySelector('.unit2') ? c.querySelector('.unit2').value : '',
+          unit_price: c.querySelector('.price').value
+        };
+      } else {
+        return {
+          line_type:    'labor',
+          item_name:    c.querySelector('.labor-type').value,
+          labor_people: c.querySelector('.labor-people').value,
+          labor_days:   c.querySelector('.labor-days').value,
+          labor_wage:   c.querySelector('.labor-wage').value
+        };
+      }
+    });
+    const snap = {
+      estimate_id:   currentNo,
+      work_type:     document.getElementById('work-type').value,
+      client_name:   document.getElementById('client-name').value,
+      work_name:     document.getElementById('work-name').value,
+      vat_on:        document.getElementById('vat-toggle').checked,
+      statement_on:  document.getElementById('statement-toggle').checked,
+      lines,
+      saved_at:      new Date().toISOString()
+    };
+    try { localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(snap)); } catch(e) {}
+  }
+
+  function restoreAutoSave() {
+    try {
+      const raw = localStorage.getItem(AUTO_SAVE_KEY);
+      if (!raw) return;
+      const snap = JSON.parse(raw);
+      if (!snap || !snap.lines || snap.lines.length === 0) return;
+      document.getElementById('work-type').value   = snap.work_type || '어닝';
+      document.getElementById('client-name').value = snap.client_name || '';
+      document.getElementById('work-name').value   = snap.work_name || '';
+      document.getElementById('vat-toggle').checked = snap.vat_on || false;
+      document.getElementById('statement-toggle').checked = snap.statement_on || false;
+      document.getElementById('item-container').innerHTML = '';
+      snap.lines.forEach(l => {
+        if (l.line_type === 'item') {
+          const card = createCard();
+          document.getElementById('item-container').appendChild(card);
+          card.querySelector('.item-name').value = l.item_name;
+          card.querySelector('.unit').value      = l.unit || '';
+          if (card.querySelector('.unit2')) card.querySelector('.unit2').value = l.unit2 || '';
+          card.querySelector('.qty').value       = l.quantity;
+          card.querySelector('.price').value     = l.unit_price;
+        } else {
+          const card = createLaborCard();
+          document.getElementById('item-container').appendChild(card);
+          card.querySelector('.labor-type').value   = l.item_name;
+          card.querySelector('.labor-people').value = l.labor_people || '';
+          card.querySelector('.labor-days').value   = l.labor_days   || '';
+          card.querySelector('.labor-wage').value   = l.labor_wage   || '';
+        }
+      });
+      if (snap.estimate_id) {
+        currentNo = snap.estimate_id;
+        document.getElementById('estimate-no').innerText = currentNo;
+      }
+      updateLabels(); calculate();
+      showToast('🔄 임시저장 복구됨');
+    } catch(e) {}
+  }
+
+  function clearAutoSave() {
+    try { localStorage.removeItem(AUTO_SAVE_KEY); } catch(e) {}
+  }
+
+  // 자동저장 타이머 시작
+  setInterval(autoSave, 30000);
 
   // ── 템플릿 ──
   function addTemplate() { return;
@@ -775,7 +1022,10 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       };
     });
     const result = TNS_Storage.save(header, [...itemLines, ...laborLines]);
-    if (result.success) showToast(status === 'approved' ? '✅ 견적 확정 완료!' : '💾 저장 완료!');
+    if (result.success) {
+      clearAutoSave();
+      showToast(status === 'approved' ? '✅ 견적 확정 완료!' : '💾 저장 완료!');
+    }
     else showToast('❌ 저장 실패');
   }
 
@@ -1305,7 +1555,15 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     }, 80);
   });
 
-  addItem();
+  // ── 앱 시작 ──
+  const _hasSave = (function() {
+    try { return !!localStorage.getItem(AUTO_SAVE_KEY); } catch(e) { return false; }
+  })();
+  if (_hasSave) {
+    restoreAutoSave();
+  } else {
+    addItem();
+  }
 </script>
 </body>
 </html>
