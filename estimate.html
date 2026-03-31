@@ -1226,7 +1226,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     const rows = buildRows(items, labors);
 
     return `
-      <div style="width:980px;box-sizing:border-box;background:#fff;position:relative;margin:0;"><div style="width:940px;padding:36px 28px 20px 28px;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;">
+      <div style="width:774px;padding:20px 20px 16px 20px;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;margin:0;">
         ${confirmed ? buildConfirmedBadge() : ''}
         <div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:3px solid #0f172a;">
           <div style="font-size:10px;color:#64748b;letter-spacing:3px;margin-bottom:6px;font-weight:700;">한국천막앵글상사</div>
@@ -1349,7 +1349,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
         <div style="padding-top:12px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;text-align:center;">
           ${SUPPLIER.name} · ${SUPPLIER.tel} · ${SUPPLIER.addr} · 발행일: ${today}
         </div>
-      </div></div>`;
+      </div>`;
   }
 
   function buildStatementHTML(confirmed, extData) {
@@ -1358,7 +1358,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     const rows = buildRows(items, labors);
 
     return `
-      <div style="width:980px;box-sizing:border-box;background:#fff;position:relative;margin:0;"><div style="width:940px;padding:36px 28px 20px 28px;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;">
+      <div style="width:774px;padding:20px 20px 16px 20px;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;margin:0;">
         ${confirmed ? buildConfirmedBadge() : ''}
         <div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:3px solid #0f172a;">
           <div style="font-size:10px;color:#64748b;letter-spacing:3px;margin-bottom:6px;font-weight:700;">한국천막앵글상사</div>
@@ -1463,55 +1463,55 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
         <div style="padding-top:12px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;text-align:center;">
           ${SUPPLIER.name} · ${SUPPLIER.tel} · ${SUPPLIER.addr} · 작성일: ${today}
         </div>
-      </div></div>`;
+      </div>`;
   }
 
-  function makePDF(html, filename, btn) {
+  function makePDF(htmlContent, filename, btn) {
     const origText = btn.innerText;
     btn.innerText = '⏳ 생성 중...';
     btn.disabled = true;
 
-    const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:980px;border:none;opacity:0;pointer-events:none;';
-    document.body.appendChild(iframe);
+    // 캡처 전용 div — body에 직접 삽입, 위치는 화면 밖
+    const container = document.createElement('div');
+    container.style.cssText = [
+      'position:fixed',
+      'left:-9999px',
+      'top:0',
+      'width:794px',
+      'background:#fff',
+      'font-family:Noto Sans KR,sans-serif',
+      'box-sizing:border-box',
+      'margin:0',
+      'padding:0'
+    ].join(';');
+    container.innerHTML = htmlContent;
+    document.body.appendChild(container);
 
-    const iDoc = iframe.contentDocument || iframe.contentWindow.document;
-    iDoc.open();
-    iDoc.write(`<!DOCTYPE html><html><head>
-      <meta charset="UTF-8">
-      <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;900&display=swap" rel="stylesheet">
-      <style>
-        *{font-family:'Noto Sans KR',sans-serif;box-sizing:border-box;}
-        body{margin:0;padding:0;background:#fff;}
-        td,th{vertical-align:middle !important;}
-        img{display:block !important;visibility:visible !important;max-width:100%;max-height:100%;}
-      </style>
-    </head><body>${html}</body></html>`);
-    iDoc.close();
-
-    // 폰트+이미지 로드 후 캡처
+    // 폰트 로드 대기 후 캡처
     setTimeout(() => {
-      // body 캡처 금지 — 문서 래퍼 div만 직접 캡처
-      const wrapperEl = iDoc.body.querySelector('div');
-      if (!wrapperEl) { iframe.remove(); btn.innerText = origText; btn.disabled = false; return; }
-      // 래퍼를 body에 딱 맞게 재배치 (auto margin 영향 제거)
-      wrapperEl.style.margin = '0';
-      wrapperEl.style.display = 'block';
-      const wrapper = wrapperEl;
       html2pdf().set({
-        margin: [8, 8, 8, 8],
+        margin: [10, 10, 10, 10],
         filename,
-        pagebreak: { mode: ['css'], avoid: ['tr', 'td'] },
+        pagebreak: { mode: ['css'], avoid: ['thead', 'tr'] },
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0, windowWidth: 980, logging: false },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: 794,
+          width: 794,
+          logging: false
+        },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      }).from(wrapper).save().then(() => {
+      }).from(container).save().then(() => {
         showToast('📄 PDF 저장 완료!\n파일 앱에서 확인하세요.');
       }).catch((err) => {
         console.error(err);
         showToast('❌ PDF 생성 실패');
       }).finally(() => {
-        iframe.remove();
+        container.remove();
         btn.innerText = origText;
         btn.disabled = false;
       });
