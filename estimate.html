@@ -1480,7 +1480,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     btn.disabled = true;
 
     const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;height:1123px;border:none;opacity:0;pointer-events:none;';
+    iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:860px;height:1123px;border:none;opacity:0;pointer-events:none;';
     document.body.appendChild(iframe);
 
     const iDoc = iframe.contentDocument || iframe.contentWindow.document;
@@ -1499,13 +1499,13 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
 
     // 폰트+이미지 로드 후 캡처
     setTimeout(() => {
-      const wrapper = iDoc.body.firstElementChild || iDoc.body;
+      const wrapper = iDoc.body;
       html2pdf().set({
         margin: [0, 0, 0, 0],
         filename,
         pagebreak: { mode: ['css', 'legacy'] },
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0, windowWidth: 900, logging: false },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0, windowWidth: 860, logging: false },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       }).from(wrapper).save().then(() => {
         showToast('📄 PDF 저장 완료!\n파일 앱에서 확인하세요.');
