@@ -569,19 +569,46 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     });
   }
 
+  // ── 새 견적 완전 초기화 ──
+  // 메모리 + 화면 + 상태 플래그 전부 새로 생성
+  // autosave(tns_autosave)는 건드리지 않음
+  function resetToNewEstimate() {
+    // ① 메모리 데이터 초기화
+    currentNo = getEstimateNo();
+    isLocked  = false;
+
+    // ② 화면 완전 리셋
+    document.getElementById('work-type').value    = '어닝';
+    document.getElementById('client-name').value  = '';
+    document.getElementById('work-name').value    = '';
+    document.getElementById('vat-toggle').checked = true;
+    const stToggle = document.getElementById('statement-toggle');
+    if (stToggle) stToggle.checked = false;
+
+    // ③ 품목 리스트 전부 제거 → 기본 1줄 생성
+    document.getElementById('item-container').innerHTML = '';
+    addItem();
+
+    // ④ 락 해제 (입력창 전부 활성화)
+    applyLock(false);
+
+    // ⑤ 번호 갱신
+    document.getElementById('estimate-no').innerText = currentNo;
+
+    calculate();
+  }
+
   // ── 탭 전환 ──
-  function switchTab(tab) {
+  function switchTab(tab, fromLoad) {
     document.getElementById('tab-form').classList.toggle('hidden', tab !== 'form');
     document.getElementById('tab-records').classList.toggle('hidden', tab !== 'records');
     document.querySelectorAll('.tab-btn').forEach((b,i) => {
       b.classList.toggle('active', (i===0 && tab==='form') || (i===1 && tab==='records'));
     });
-    // 작성 탭으로 직접 클릭 시 락 해제 (불러오기 경유 아닌 경우)
-    if (tab === 'form' && isLocked) {
-      applyLock(false);
+    // 기록탭 → 작성탭 직접 클릭 (불러오기 경유 아님) 일 때만 새 견적 초기화
+    if (tab === 'form' && !fromLoad && isLocked) {
+      resetToNewEstimate();
       showToast('✏️ 새 견적 작성 모드');
-      currentNo = getEstimateNo();
-      document.getElementById('estimate-no').innerText = currentNo;
     }
     if (tab === 'records') renderRecords();
   }
@@ -1111,7 +1138,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     document.getElementById('estimate-no').innerText = currentNo;
     updateLabels(); calculate();
     const locked = header.estimate_status === 'approved';
-    switchTab('form');
+    switchTab('form', true);   // fromLoad=true → 초기화 스킵
     applyLock(locked);
     showToast(locked ? '🔒 확정된 견적입니다 — 수정 불가' : '✅ 불러왔어요 — ' + estimateId);
   }
@@ -1565,7 +1592,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     const banner = document.getElementById('restore-banner');
     if (banner) { banner.remove(); document.body.style.paddingTop = ''; }
     try { localStorage.removeItem(AUTO_SAVE_KEY); } catch(e) {}
-    addItem();
+    resetToNewEstimate();
   }
 </script>
 </body>
