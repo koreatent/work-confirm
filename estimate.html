@@ -1138,7 +1138,12 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     const { client, work, vatOn, items, labors, supply, vatAmt, total, today } = getDocData();
     const statementOn = document.getElementById('statement-toggle').checked;
     renderPdfRoot(isLocked, { client, work, vatOn, items, labors, supply, vatAmt, total, today }, statementOn);
-    setTimeout(() => { window.print(); }, 100);
+    // 파일명: 날짜_거래처명
+    const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    const clientStr = (document.getElementById('client-name').value || '미정').replace(/\s+/g,'');
+    const prevTitle = document.title;
+    document.title = dateStr + '_' + clientStr;
+    setTimeout(() => { window.print(); document.title = prevTitle; }, 100);
   }
 
   // ── 기록에서 보내기 ──
@@ -1165,7 +1170,12 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     const total  = vatOn ? supply + vatAmt : supply;
     const today  = new Date().toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric'});
     renderPdfRoot(isApproved, { client, work, vatOn, items, labors, supply, vatAmt, total, today }, false);
-    setTimeout(() => { window.print(); }, 100);
+    // 파일명: 날짜_거래처명 (header.estimate_date 기준)
+    const dateStr = (header.estimate_date || new Date().toISOString().slice(0,10)).replace(/-/g,'');
+    const clientStr = (header.customer_name || '미정').replace(/\s+/g,'');
+    const prevTitle = document.title;
+    document.title = dateStr + '_' + clientStr;
+    setTimeout(() => { window.print(); document.title = prevTitle; }, 100);
   }
 
   // ── #pdf-root 렌더링 ──
@@ -1260,7 +1270,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     const rows = buildRows(items, labors);
 
     return `
-      <div style="width:794px;min-height:1123px;box-sizing:border-box;background:#fff;position:relative;margin:0 auto;padding:40px 36px 36px 36px;font-family:'Noto Sans KR',sans-serif;color:#1e293b;">
+      <div style="width:210mm;display:block;box-sizing:border-box;background:#fff;position:relative;margin:0 auto;"><div style="width:190mm;padding:12mm 10mm 8mm 10mm;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;">
         ${confirmed ? buildConfirmedBadge() : ''}
         <div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:3px solid #0f172a;">
           <div style="font-size:10px;color:#64748b;letter-spacing:3px;margin-bottom:6px;font-weight:700;">한국천막앵글상사</div>
@@ -1352,22 +1362,14 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
         </table>
 
         <table style="width:100%;border-collapse:collapse;margin-bottom:10px;table-layout:fixed;page-break-inside:auto;">
-          <colgroup>
-            <col style="width:32%;">
-            <col style="width:11%;">
-            <col style="width:9%;">
-            <col style="width:9%;">
-            <col style="width:18%;">
-            <col style="width:21%;">
-          </colgroup>
           <thead>
             <tr style="background:#0f172a;color:white;">
-              <th style="padding:8px 8px;font-size:11px;text-align:left;font-weight:700;border:1px solid #0f172a;">품명</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;border:1px solid #0f172a;">규격</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;border:1px solid #0f172a;">단위</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;border:1px solid #0f172a;">수량</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;border:1px solid #0f172a;">단가</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;border:1px solid #0f172a;">금액</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:left;font-weight:700;">품명</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;">규격</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;">단위</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">수량</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">단가</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">금액</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -1388,10 +1390,10 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
           </tr>
         </table>
 
-        <div style="padding-top:12px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;text-align:center;">
+        <div style="padding-top:8px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;text-align:center;margin-bottom:0;">
           ${SUPPLIER.name} · ${SUPPLIER.tel} · ${SUPPLIER.addr} · 발행일: ${today}
         </div>
-      </div>`;
+      </div></div>`;
   }
 
   function buildStatementHTML(confirmed, extData) {
@@ -1399,7 +1401,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     const rows = buildRows(items, labors);
 
     return `
-      <div style="width:794px;min-height:1123px;box-sizing:border-box;background:#fff;position:relative;margin:0 auto;padding:40px 36px 36px 36px;font-family:'Noto Sans KR',sans-serif;color:#1e293b;page-break-before:always;">
+      <div style="width:210mm;display:block;box-sizing:border-box;background:#fff;position:relative;margin:0 auto;"><div style="width:190mm;padding:12mm 10mm 8mm 10mm;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;">
         ${confirmed ? buildConfirmedBadge() : ''}
         <div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:3px solid #0f172a;">
           <div style="font-size:10px;color:#64748b;letter-spacing:3px;margin-bottom:6px;font-weight:700;">한국천막앵글상사</div>
@@ -1473,22 +1475,14 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
         </table>
 
         <table style="width:100%;border-collapse:collapse;margin-bottom:10px;table-layout:fixed;page-break-inside:auto;">
-          <colgroup>
-            <col style="width:32%;">
-            <col style="width:11%;">
-            <col style="width:9%;">
-            <col style="width:9%;">
-            <col style="width:18%;">
-            <col style="width:21%;">
-          </colgroup>
           <thead>
             <tr style="background:#0f172a;color:white;">
-              <th style="padding:8px 8px;font-size:11px;text-align:left;font-weight:700;border:1px solid #0f172a;">품명</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;border:1px solid #0f172a;">규격</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;border:1px solid #0f172a;">단위</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;border:1px solid #0f172a;">수량</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;border:1px solid #0f172a;">단가</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;border:1px solid #0f172a;">금액</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:left;font-weight:700;">품명</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;">규격</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;">단위</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">수량</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">단가</th>
+              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">금액</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -1509,10 +1503,10 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
           </tr>
         </table>
 
-        <div style="padding-top:12px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;text-align:center;">
+        <div style="padding-top:8px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;text-align:center;margin-bottom:0;">
           ${SUPPLIER.name} · ${SUPPLIER.tel} · ${SUPPLIER.addr} · 작성일: ${today}
         </div>
-      </div>`;
+      </div></div>`;
   }
 
 
@@ -1536,13 +1530,41 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     }, 80);
   });
 
-  // ── 앱 시작 ──
-  const _hasSave = (function() {
-    try { return !!localStorage.getItem(AUTO_SAVE_KEY); } catch(e) { return false; }
+  // ── 앱 시작 ── (자동복구 제거 / 선택복구 구조)
+  (function() {
+    const hasSave = (function() {
+      try { return !!localStorage.getItem(AUTO_SAVE_KEY); } catch(e) { return false; }
+    })();
+
+    if (hasSave) {
+      // 선택복구 배너 표시
+      const banner = document.createElement('div');
+      banner.id = 'restore-banner';
+      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9998;background:#0f172a;color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,0.25);';
+      banner.innerHTML = `
+        <span style="font-size:13px;font-weight:700;">💾 이전 작업이 있습니다</span>
+        <div style="display:flex;gap:8px;">
+          <button onclick="doRestoreAutoSave()" style="background:#3b82f6;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:900;cursor:pointer;">복구하기</button>
+          <button onclick="doNewEstimate()" style="background:#475569;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:900;cursor:pointer;">새 견적 시작</button>
+        </div>`;
+      document.body.appendChild(banner);
+      // 배너 공간 확보용 body 패딩
+      document.body.style.paddingTop = '56px';
+    } else {
+      addItem();
+    }
   })();
-  if (_hasSave) {
+
+  function doRestoreAutoSave() {
+    const banner = document.getElementById('restore-banner');
+    if (banner) { banner.remove(); document.body.style.paddingTop = ''; }
     restoreAutoSave();
-  } else {
+  }
+
+  function doNewEstimate() {
+    const banner = document.getElementById('restore-banner');
+    if (banner) { banner.remove(); document.body.style.paddingTop = ''; }
+    try { localStorage.removeItem(AUTO_SAVE_KEY); } catch(e) {}
     addItem();
   }
 </script>
