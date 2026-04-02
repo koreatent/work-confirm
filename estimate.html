@@ -6,16 +6,8 @@
   <title>TNS 견적 v2.2</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;900&display=swap" rel="stylesheet">
-  <style>
-    /* ── 인쇄 시: 화면 숨기고 pdf-root만 출력 ── */
-    @media print {
-      body > *:not(#pdf-root) { display: none !important; }
-      #pdf-root { display: block !important; }
-      @page { size: A4; margin: 10mm; }
-    }
-    /* ── 화면 표시 시: pdf-root 숨김 ── */
-    #pdf-root { display: none; }
-  </style>
+  <!-- html2canvas CDN — 이미지 저장 전용 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
     * { font-family: 'Noto Sans KR', sans-serif; }
     body {
@@ -235,9 +227,6 @@
 </head>
 <body class="pb-32">
 
-<!-- PDF 전용 영역 (화면에선 숨김, 인쇄 시만 표시) -->
-<div id="pdf-root" style="width:794px;margin:0 auto;padding:0;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;background:#fff;"></div>
-
 <div id="modal-overlay">
   <div id="modal-box">
     <div id="modal-msg"></div>
@@ -309,7 +298,7 @@
       <button onclick="addItem()" class="btn-add py-3 rounded-xl font-black text-[11px] shadow-md">+ 품목 추가</button>
       <button onclick="addLaborItem()" class="btn-labor py-3 rounded-xl font-black text-[11px] shadow-md">+ 인건비 추가</button>
       <button onclick="saveEstimate('draft')" class="btn-save py-3 rounded-xl font-black text-[11px] shadow-md">저장</button>
-      <button onclick="sendEstimate()" class="btn-pdf py-3 rounded-xl font-black text-[11px] shadow-md">견적서 보내기</button>
+      <button onclick="sendEstimate()" class="btn-pdf py-3 rounded-xl font-black text-[11px] shadow-md">견적서 이미지 저장</button>
     </div>
   </footer>
 </div>
@@ -321,13 +310,32 @@
     <span class="records-count text-xs font-black px-3 py-1 rounded-full" id="records-count">0건</span>
   </div>
   <div id="records-list" class="space-y-3"></div>
+
+  <!-- ── 이미지 테스트 패널 ── -->
+  <div style="margin-top:24px;border:2px dashed #cbd5e1;border-radius:12px;padding:16px;">
+    <div style="font-size:11px;font-weight:900;color:#64748b;margin-bottom:12px;letter-spacing:1px;">🧪 이미지 출력 테스트 (4항목)</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button onclick="runPrintTest('items_only')" style="background:#f1f5f9;border:1px solid #1e3a8a;border-radius:8px;padding:9px 12px;font-size:11px;font-weight:900;color:#0f172a;text-align:left;cursor:pointer;">
+        🖼️ Case 1 — 품목만 (VAT 포함, 3품목) · 이미지 잘림 확인
+      </button>
+      <button onclick="runPrintTest('items_and_labor')" style="background:#f1f5f9;border:1px solid #1e3a8a;border-radius:8px;padding:9px 12px;font-size:11px;font-weight:900;color:#0f172a;text-align:left;cursor:pointer;">
+        🖼️ Case 2 — 품목 + 인건비 (VAT 별도) · 긴 견적서 전체 캡처
+      </button>
+      <button onclick="runPrintTest('with_statement')" style="background:#f1f5f9;border:1px solid #1e3a8a;border-radius:8px;padding:9px 12px;font-size:11px;font-weight:900;color:#0f172a;text-align:left;cursor:pointer;">
+        🖼️ Case 3 — 견적서 + 거래명세서 · 스크롤 포함 전체 캡처
+      </button>
+    </div>
+    <div style="font-size:10px;color:#94a3b8;margin-top:10px;line-height:1.6;">
+      ✅ 검증 항목: ① 긴 견적서 잘림 없음 &nbsp;② 확대 시 글씨 선명 &nbsp;③ 모바일 가독성 &nbsp;④ PNG 다운로드
+    </div>
+  </div>
 </div>
 
 <script>
   const fmt = (n) => new Intl.NumberFormat('ko-KR').format(Number(n)||0);
   const num = (v) => Number(String(v ?? '').replace(/[^\d.-]/g, '')) || 0;
 
-  // ── 공급자 정보 (PDF용) ──
+  // ── 공급자 정보 ──
   const SUPPLIER = {
     bizNo:   '126-17-66563',
     name:    '한국천막앵글상사',
@@ -415,7 +423,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       { unit_id: 'U-006', unit_name: '본',  unit_type: '수량',  is_active: true },
       { unit_id: 'U-007', unit_name: '세트', unit_type: '수량', is_active: true },
       { unit_id: 'U-008', unit_name: 'EA',  unit_type: '수량',  is_active: true },
-      { unit_id: 'U-009', unit_name: '인·일', unit_type: '인건비', is_active: true },
+      { unit_id: 'U-009', unit_name: '인', unit_type: '인건비', is_active: true },
       { unit_id: 'U-010', unit_name: '일',  unit_type: '인건비', is_active: true },
       { unit_id: 'U-011', unit_name: 'kg',  unit_type: '중량',  is_active: true },
       { unit_id: 'U-012', unit_name: '박스', unit_type: '수량', is_active: true }
@@ -605,12 +613,20 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     document.querySelectorAll('.tab-btn').forEach((b,i) => {
       b.classList.toggle('active', (i===0 && tab==='form') || (i===1 && tab==='records'));
     });
-    // 기록탭 → 작성탭 직접 클릭 (불러오기 경유 아님) 일 때만 새 견적 초기화
-    if (tab === 'form' && !fromLoad && isLocked) {
-      resetToNewEstimate();
-      showToast('✏️ 새 견적 작성 모드');
+    // fromLoad=true(불러오기 경유)일 때만 초기화 스킵
+    // draft·저장·확정 상태 무관 — 직접 탭 클릭은 항상 새 견적 시작
+    if (tab === 'form' && !fromLoad) {
+      startNewEstimate();
     }
     if (tab === 'records') renderRecords();
+  }
+
+  // ── 새 견적 시작 (독립 액션) ──
+  // 호출 경로: 배너 [새 견적 시작] / ✏️ 탭 직접 클릭 / doNewEstimate()
+  // 상태 체크 없음 — 항상 autosave 삭제 + 화면 초기화
+  function startNewEstimate() {
+    try { localStorage.removeItem(AUTO_SAVE_KEY); } catch(e) {}
+    resetToNewEstimate();
   }
 
   // ── 품목 카드 생성 ──
@@ -678,7 +694,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
   }
 
   // ── 인건비 카드 생성 ──
-  const LABOR_TYPES = ['철골제작', '천막제작', '현장설치작업', '철거작업'];
+  const LABOR_TYPES = ['철골제작', '천막제작', '현장설치작업', '철거작업', '앵글작업'];
 
   function createLaborCard() {
     const div = document.createElement('div');
@@ -701,7 +717,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       </select>
       <div class="grid grid-cols-3 gap-2">
         <div class="flex flex-col">
-          <span class="text-[9px] font-black text-blue-700 mb-1 text-center">인원(명)</span>
+          <span class="text-[9px] font-black text-blue-700 mb-1 text-center">인원(인)</span>
           <input type="text" value="1" inputmode="numeric" class="labor-people border rounded-lg p-2 text-right text-xs" style="border-color:#1e40af!important;">
         </div>
         <div class="flex flex-col">
@@ -923,7 +939,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       document.getElementById('work-type').value   = snap.work_type || '어닝';
       document.getElementById('client-name').value = snap.client_name || '';
       document.getElementById('work-name').value   = snap.work_name || '';
-      document.getElementById('vat-toggle').checked = snap.vat_on || false;
+      document.getElementById('vat-toggle').checked = ('vat_on' in snap) ? !!snap.vat_on : true;
       document.getElementById('statement-toggle').checked = snap.statement_on || false;
       document.getElementById('item-container').innerHTML = '';
       snap.lines.forEach(l => {
@@ -982,7 +998,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     updateLabels(); calculate();
   }
 
-  // ── 거래명세서 토글 ── (버튼 없음, PDF 출력 방식만 변경)
+  // ── 거래명세서 토글 ── (ON 시 이미지에 견적서+명세서 함께 캡처)
   function toggleStatement() {
     const on = document.getElementById('statement-toggle').checked;
     const label = document.querySelector('label[for="statement-toggle"] span') || 
@@ -1050,7 +1066,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
         line_type:    'labor',
         item_name:    c.querySelector('.labor-type').value,
         quantity:     String(p * d),
-        unit:         '인·일',
+        unit:         '인',
         unit_price:   String(w),
         total_amount: String(p * d * w),
         labor_people: String(p),
@@ -1094,7 +1110,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
         </div>
         <div class="flex gap-2 mt-3">
           <button onclick="loadRecord('${r.estimate_id}')" class="btn-load flex-1 py-2 rounded-xl text-xs font-black">✏️ 불러오기</button>
-          <button onclick="pdfFromList('${r.estimate_id}')" class="btn-pdf py-2 px-3 rounded-xl text-xs font-black">📄 보내기</button>
+          <button onclick="imageFromList('${r.estimate_id}')" class="btn-pdf py-2 px-3 rounded-xl text-xs font-black">🖼️ 이미지 저장</button>
           ${isDraft ? `<button onclick="confirmRecord('${r.estimate_id}')" class="btn-confirm py-2 px-3 rounded-xl text-xs font-black">✅ 확정</button>` : ''}
           <button onclick="deleteRecord('${r.estimate_id}')" class="btn-delete py-2 px-3 rounded-xl text-xs font-black">🗑️</button>
         </div>
@@ -1110,7 +1126,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     document.getElementById('work-type').value   = header.project_name || '어닝';
     document.getElementById('client-name').value = header.customer_name;
     document.getElementById('work-name').value   = header.site_name || '';
-    document.getElementById('vat-toggle').checked = header.vat_on || false;
+    document.getElementById('vat-toggle').checked = ('vat_on' in header) ? !!header.vat_on : true;
     document.getElementById('item-container').innerHTML = '';
     lines.forEach(l => {
       if (l.line_type === 'item') {
@@ -1160,27 +1176,87 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     renderRecords();
   }
 
-  // ── 견적서 보내기 (현재 작성 중인 것) ──
-  function sendEstimate() {
-    const { client, work, vatOn, items, labors, supply, vatAmt, total, today } = getDocData();
-    const statementOn = document.getElementById('statement-toggle').checked;
-    renderPdfRoot(isLocked, { client, work, vatOn, items, labors, supply, vatAmt, total, today }, statementOn);
-    // 파일명: 날짜_거래처명
-    const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
-    const clientStr = (document.getElementById('client-name').value || '미정').replace(/\s+/g,'');
-    const prevTitle = document.title;
-    document.title = dateStr + '_' + clientStr;
-    setTimeout(() => { window.print(); document.title = prevTitle; }, 100);
+  // ── 견적서 wrapper 빌드 후 DOM에 숨겨서 캡처 ──
+  function buildEstimateWrapper(confirmed, data, statementOn) {
+    const estimateHtml = buildEstimateHTML(confirmed, data);
+    const statementHtml = statementOn ? buildStatementHTML(confirmed, data) : '';
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = [
+      'position:fixed',
+      'left:-9999px',
+      'top:0',
+      'width:794px',           // A4 px 고정폭 (캡처 기준)
+      'background:#fff',
+      'font-family:\'Noto Sans KR\',sans-serif',
+      'overflow:visible',      // 잘림 방지
+      'z-index:-1',
+    ].join(';');
+    wrapper.innerHTML = estimateHtml + statementHtml;
+    document.body.appendChild(wrapper);
+    return wrapper;
   }
 
-  // ── 기록에서 보내기 ──
-  function pdfFromList(estimateId) {
+  // ── html2canvas 이미지 저장 (scale 3, blur 방지) ──
+  function captureAndSave(wrapper, filename) {
+    const dpr = window.devicePixelRatio || 1;
+    const scale = Math.max(3, dpr * 2);   // 최소 scale 3, 고해상도 기기 배려
+
+    showToast('이미지 생성 중...');
+    // 렌더링 안정화 대기
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        html2canvas(wrapper, {
+          scale:       scale,
+          useCORS:     true,
+          logging:     false,
+          backgroundColor: '#ffffff',
+          width:       wrapper.scrollWidth,
+          height:      wrapper.scrollHeight,   // 전체 높이 — 잘림 방지
+          windowWidth: 794,
+          scrollX:     0,
+          scrollY:     0,
+        }).then(canvas => {
+          document.body.removeChild(wrapper);
+          closeModal();
+          const link = document.createElement('a');
+          link.download = filename;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+          showToast('✅ 이미지 저장 완료');
+        }).catch(err => {
+          document.body.removeChild(wrapper);
+          console.error(err);
+          showToast('이미지 생성 실패. 다시 시도해주세요.');
+        });
+      }, 200);
+    });
+  }
+
+  // ── 파일명 생성: 고객명_날짜_견적.png ──
+  function makeFilename(clientStr, dateStr) {
+    const c = (clientStr || '미정').replace(/\s+/g, '');
+    const d = (dateStr || new Date().toISOString().slice(0,10)).replace(/-/g,'');
+    return `${c}_${d}_견적.png`;
+  }
+
+  // ── 견적서 이미지 저장 (현재 작성 중인 것) ──
+  function sendEstimate() {
+    const docData = getDocData();
+    const statementOn = document.getElementById('statement-toggle').checked;
+    const wrapper = buildEstimateWrapper(isLocked, docData, statementOn);
+    const clientStr = document.getElementById('client-name').value;
+    const dateStr   = new Date().toISOString().slice(0,10);
+    captureAndSave(wrapper, makeFilename(clientStr, dateStr));
+  }
+
+  // ── 기록에서 이미지 저장 ──
+  function imageFromList(estimateId) {
     const data = TNS_Storage.load(estimateId);
     if (!data) { showToast('데이터를 불러올 수 없습니다.'); return; }
     const { header, lines } = data;
     const client = header.customer_name || '미정';
     const work   = header.project_name || '';
-    const vatOn  = header.vat_on || false;
+    const vatOn  = ('vat_on' in header) ? !!header.vat_on : true;
     const isApproved = header.estimate_status === 'approved';
     let supply = 0;
     const items = lines.filter(l => l.line_type === 'item').map(l => {
@@ -1196,19 +1272,9 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     const vatAmt = vatOn ? Math.floor(supply * 0.1) : 0;
     const total  = vatOn ? supply + vatAmt : supply;
     const today  = new Date().toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric'});
-    renderPdfRoot(isApproved, { client, work, vatOn, items, labors, supply, vatAmt, total, today }, false);
-    // 파일명: 날짜_거래처명 (header.estimate_date 기준)
-    const dateStr = (header.estimate_date || new Date().toISOString().slice(0,10)).replace(/-/g,'');
-    const clientStr = (header.customer_name || '미정').replace(/\s+/g,'');
-    const prevTitle = document.title;
-    document.title = dateStr + '_' + clientStr;
-    setTimeout(() => { window.print(); document.title = prevTitle; }, 100);
-  }
-
-  // ── #pdf-root 렌더링 ──
-  function renderPdfRoot(confirmed, data, statementOn) {
-    const root = document.getElementById('pdf-root');
-    root.innerHTML = buildEstimateHTML(confirmed, data) + (statementOn ? buildStatementHTML(confirmed, data) : '');
+    const wrapper = buildEstimateWrapper(isApproved, { client, work, vatOn, items, labors, supply, vatAmt, total, today }, false);
+    const dateStr = (header.estimate_date || new Date().toISOString().slice(0,10));
+    captureAndSave(wrapper, makeFilename(client, dateStr));
   }
 
 
@@ -1248,24 +1314,28 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
   }
 
   function buildRows(items, labors) {
+    const ROW_STYLE = 'page-break-inside:avoid;break-inside:avoid;';
+    const TD = 'border:1px solid #cbd5e1;padding:0;font-size:11px;';
+    const CELL = (align, bold, content) =>
+      `<div style="display:flex;align-items:center;justify-content:${align};min-height:30px;padding:0 8px;font-size:11px;${bold?'font-weight:700;':''}">${content}</div>`;
     const itemRows = items.map(it => `
-      <tr>
-        <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;">${it.name}</td>
-        <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;text-align:center;">${it.spec||''}</td>
-        <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;text-align:center;">${it.unit||''}</td>
-        <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;text-align:right;">${it.qty}</td>
-        <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;text-align:right;">${fmt(it.price)}</td>
-        <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;text-align:right;font-weight:700;">${fmt(it.amt)}</td>
+      <tr style="${ROW_STYLE}">
+        <td style="${TD};padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${CELL('flex-start',false,it.name)}</div></td>
+        <td style="${TD};padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${CELL('center',false,it.spec||'')}</div></td>
+        <td style="${TD};padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${CELL('center',false,it.unit||'')}</div></td>
+        <td style="${TD};padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${CELL('flex-end',false,it.qty)}</div></td>
+        <td style="${TD};padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${CELL('flex-end',false,fmt(it.price))}</div></td>
+        <td style="${TD};padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${CELL('flex-end',true,fmt(it.amt))}</div></td>
       </tr>`).join('');
 
     const laborRows = (labors || []).map(lb => `
-      <tr>
-        <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;">${lb.type}</td>
-        <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:10px;height:26px;text-align:center;">${lb.people}인</td>
-        <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:10px;height:26px;text-align:center;">${lb.days}일</td>
-        <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;text-align:right;">${lb.people * lb.days}</td>
-        <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;text-align:right;">${fmt(lb.wage)}</td>
-        <td style="border:1px solid #cbd5e1;padding:7px 8px;font-size:11px;height:26px;text-align:right;font-weight:700;">${fmt(lb.amt)}</td>
+      <tr style="${ROW_STYLE}">
+        <td style="${TD};padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${CELL('flex-start',false,lb.type)}</div></td>
+        <td style="${TD}"><div style="display:flex;align-items:center;justify-content:center;min-height:30px;padding:0 8px;font-size:10px;">${lb.people}인</div></td>
+        <td style="${TD}"><div style="display:flex;align-items:center;justify-content:center;min-height:30px;padding:0 8px;font-size:10px;">${lb.days}일</div></td>
+        <td style="${TD};padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${CELL('flex-end',false,lb.people * lb.days)}</div></td>
+        <td style="${TD};padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${CELL('flex-end',false,fmt(lb.wage))}</div></td>
+        <td style="${TD};padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${CELL('flex-end',true,fmt(lb.amt))}</div></td>
       </tr>`).join('');
 
     return itemRows + laborRows;
@@ -1292,250 +1362,342 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       </div>`;
   }
 
+  // ── 페이지 공통 스타일 상수 ──
+  const PAGE_STYLE = [
+    'width:210mm',
+    'min-height:297mm',
+    'box-sizing:border-box',
+    'background:#fff',
+    'position:relative',
+    'margin:0 auto',
+    'padding:12mm 10mm 14mm 10mm',
+    'font-family:\'Noto Sans KR\',sans-serif',
+    'color:#1e293b',
+    'page-break-after:always',  // 페이지 명시적 분리
+    'break-after:page',
+  ].join(';');
+
+  // 마지막 페이지는 page-break 없이
+  const PAGE_STYLE_LAST = PAGE_STYLE
+    .replace('page-break-after:always;', '')
+    .replace('break-after:page;', '');
+
+  // ── 2페이지 이상용 축약 헤더 ──
+  function buildContinuedHeader(docTitle, client, work, pageNum, total, vatOn) {
+    return `
+      <div style="border-bottom:2px solid #0f172a;padding-bottom:6px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:flex-end;">
+        <div>
+          <div style="font-size:9px;color:#94a3b8;font-weight:700;letter-spacing:2px;">한국천막앵글상사</div>
+          <div style="font-size:15px;font-weight:900;letter-spacing:3px;color:#0f172a;">${docTitle} <span style="font-size:10px;font-weight:400;color:#64748b;">(계속 ${pageNum}p)</span></div>
+        </div>
+        <div style="text-align:right;font-size:10px;color:#475569;">
+          <div style="font-weight:700;">${client}</div>
+          <div>${work || ''}</div>
+          <div style="font-weight:900;color:#0f172a;">합계 ￦ ${fmt(total)} ${vatOn ? '(VAT포함)' : '(VAT별도)'}</div>
+        </div>
+      </div>`;
+  }
+
+  // ── 문서 공통 푸터 ──
+  function buildDocFooter(today) {
+    return `
+      <div style="position:absolute;bottom:10mm;left:10mm;right:10mm;padding-top:6px;border-top:1px solid #e2e8f0;font-size:9px;color:#94a3b8;text-align:center;">
+        ${SUPPLIER.name} · ${SUPPLIER.tel} · ${SUPPLIER.addr} · 발행일: ${today}
+      </div>`;
+  }
+
+  // ── 품목 테이블 헤더 HTML ──
+  function buildTableHeader() {
+    return `
+      <thead>
+        <tr style="background:#0f172a;color:white;page-break-inside:avoid;break-inside:avoid;">
+          <th style="padding:0;font-weight:700;"><div style="display:flex;align-items:center;justify-content:flex-start;padding:0 8px;font-size:11px;">품명</div></th>
+          <th style="padding:0;font-weight:700;"><div style="display:flex;align-items:center;justify-content:center;min-height:32px;padding:0 8px;font-size:11px;">규격</div></th>
+          <th style="padding:0;font-weight:700;"><div style="display:flex;align-items:center;justify-content:center;min-height:32px;padding:0 8px;font-size:11px;">단위</div></th>
+          <th style="padding:0;font-weight:700;"><div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-size:11px;">수량</div></th>
+          <th style="padding:0;font-weight:700;"><div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-size:11px;">단가</div></th>
+          <th style="padding:0;font-weight:700;"><div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-size:11px;">금액</div></th>
+        </tr>
+      </thead>`;
+  }
+
+  // ── 합계 테이블 HTML ──
+  function buildSummaryTable(supply, vatAmt, total, vatOn) {
+    return `
+      <table style="width:100%;border-collapse:collapse;margin-bottom:10px;page-break-inside:avoid;break-inside:avoid;">
+        <tr>
+          <td style="border:1px solid #cbd5e1;background:#f8fafc;font-size:11px;font-weight:700;width:25%;padding:0"><div style="display:flex;align-items:center;justify-content:center;min-height:28px;padding:7px 10px;font-size:11px;font-weight:700;">공급가액</div></td>
+          <td style="border:1px solid #cbd5e1;font-size:12px;width:25%;padding:0"><div style="display:flex;align-items:center;justify-content:flex-end;min-height:28px;padding:7px 10px;font-size:12px;">￦ ${fmt(supply)}</div></td>
+          <td style="border:1px solid #cbd5e1;background:#f8fafc;font-size:11px;font-weight:700;width:25%;padding:0"><div style="display:flex;align-items:center;justify-content:center;min-height:28px;padding:7px 10px;font-size:11px;font-weight:700;">부가세 (10%)</div></td>
+          <td style="border:1px solid #cbd5e1;padding:7px 10px;font-size:12px;text-align:right;width:25%;">${vatOn ? `￦ ${fmt(vatAmt)}` : '<span style="color:#94a3b8;font-size:11px;">별도</span>'}</td>
+        </tr>
+        <tr style="page-break-inside:avoid;break-inside:avoid;">
+          <td colspan="2" style="border:1px solid #cbd5e1;padding:0;background:#0f172a;color:#fff;font-size:11px;font-weight:700;"><div style="display:flex;align-items:center;justify-content:center;min-height:34px;padding:0 10px;">합 계 금 액</div></td>
+          <td colspan="2" style="border:1px solid #cbd5e1;padding:8px 10px;font-size:16px;font-weight:900;text-align:right;color:#0f172a;">
+            ￦ ${fmt(total)} <span style="font-size:11px;font-weight:400;color:#64748b;">${vatOn ? '(VAT 포함)' : '(VAT 별도)'}</span>
+          </td>
+        </tr>
+      </table>`;
+  }
+
   function buildEstimateHTML(confirmed, extData) {
     const { client, work, vatOn, items, labors, supply, vatAmt, total, today } = extData || getDocData();
-    const rows = buildRows(items, labors);
 
-    return `
-      <div style="width:210mm;display:block;box-sizing:border-box;background:#fff;position:relative;margin:0 auto;"><div style="width:190mm;padding:12mm 10mm 8mm 10mm;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;">
+    // ── 1페이지: header + body(품목 전체) + footer ──
+    // 콘텐츠 높이에 따라 자동 확장 — overflow:visible 보장
+    // 단, header/summary/footer 블록은 page-break-inside:avoid로 묶음 처리
+    const page1 = `
+      <div style="${PAGE_STYLE}">
         ${confirmed ? buildConfirmedBadge() : ''}
-        <div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:3px solid #0f172a;">
-          <div style="font-size:10px;color:#64748b;letter-spacing:3px;margin-bottom:6px;font-weight:700;">한국천막앵글상사</div>
-          <div style="font-size:20px;font-weight:900;letter-spacing:4px;color:#0f172a;">견 적 서</div>
-        </div>
 
-        <table style="width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px;table-layout:fixed;page-break-inside:avoid;">
-          <colgroup><col style="width:50%;"><col style="width:50%;"></colgroup>
-          <tr>
-            <!-- 견적 정보 (왼쪽) -->
-            <td style="vertical-align:top;padding-right:6px;">
-              <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
-                <colgroup><col style="width:70px;"><col style="width:auto;"></colgroup>
-                <tr>
-                  <td colspan="2" style="background:#0f172a;color:#fff;font-weight:700;padding:6px 8px;font-size:11px;text-align:center;height:28px;line-height:1;">견 적 정 보</td>
-                </tr>
-                <tr style="height:28px;">
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">견적번호</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${currentNo}</td>
-                </tr>
-                <tr style="height:28px;">
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">견적일</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${today}</td>
-                </tr>
-                <tr style="height:28px;">
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">거래처</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-weight:700;font-size:12px;">${client}</td>
-                </tr>
-                <tr style="height:28px;">
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">공사명</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${work || '-'}</td>
-                </tr>
-              </table>
-            </td>
+        <!-- HEADER: 제목 + 견적정보/공급자 테이블 -->
+        <div style="page-break-inside:avoid;break-inside:avoid;margin-bottom:10px;">
+          <div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:3px solid #0f172a;">
+            <div style="font-size:10px;color:#64748b;letter-spacing:3px;margin-bottom:6px;font-weight:700;">한국천막앵글상사</div>
+            <div style="font-size:20px;font-weight:900;letter-spacing:4px;color:#0f172a;">견 적 서</div>
+          </div>
 
-            <!-- 공급자 (오른쪽) -->
-            <td style="vertical-align:top;padding-left:6px;">
-              <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
-                <colgroup>
-                  <col style="width:56px;">
-                  <col style="width:auto;">
-                  <col style="width:36px;">
-                  <col style="width:auto;">
-                </colgroup>
-                <tr>
-                  <td colspan="4" style="background:#0f172a;color:#fff;font-weight:700;padding:6px 8px;font-size:11px;text-align:center;height:28px;line-height:1;">공 급 자</td>
-                </tr>
-                <tr style="height:28px;">
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:10px;white-space:nowrap;">사업자번호</td>
-                  <td colspan="3" style="border:1px solid #cbd5e1;padding:5px 10px;font-size:11px;white-space:nowrap;text-align:center;">${SUPPLIER.bizNo}</td>
-                </tr>
-                <tr style="height:48px;">
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">상 호</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 10px;font-size:11px;word-break:keep-all;text-align:center;">${SUPPLIER.name}</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 4px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;text-align:center;">성명</td>
-                  ${buildSupplierCell()}
-                </tr>
-                <tr style="height:28px;">
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">주 소</td>
-                  <td colspan="3" style="border:1px solid #cbd5e1;padding:5px 10px;font-size:10px;word-break:break-all;text-align:center;">${SUPPLIER.addr}</td>
-                </tr>
-                <tr style="height:28px;">
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">업 태</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;text-align:center;">${SUPPLIER.bizType}</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 4px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;text-align:center;">종목</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:10px;word-break:keep-all;text-align:center;">${SUPPLIER.bizItem}</td>
-                </tr>
-                <tr style="height:28px;">
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">TEL</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;white-space:nowrap;text-align:center;">${SUPPLIER.tel}</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 4px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;text-align:center;">FAX</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;white-space:nowrap;text-align:center;">${SUPPLIER.fax}</td>
-                </tr>
-                <tr style="height:24px;">
-                  <td colspan="4" style="border:1px solid #cbd5e1;padding:5px 7px;font-size:10px;color:#475569;">
-                    M: ${SUPPLIER.mobile} &nbsp; E: ${SUPPLIER.email}
-                  </td>
-                </tr>
-                <!-- 합계금액 — 공급자 하단 -->
-                <tr style="height:36px;">
-                  <td colspan="2" style="border:1px solid #cbd5e1;padding:5px 7px;background:#0f172a;color:#fff;font-weight:700;font-size:11px;text-align:center;white-space:nowrap;">합 계 금 액</td>
-                  <td colspan="2" style="border:1px solid #cbd5e1;padding:5px 7px;font-weight:900;font-size:13px;color:#0f172a;text-align:right;">
-                    ￦ ${fmt(total)}
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-
-        <table style="width:100%;border-collapse:collapse;margin-bottom:10px;table-layout:fixed;page-break-inside:auto;">
-          <thead>
-            <tr style="background:#0f172a;color:white;">
-              <th style="padding:8px 8px;font-size:11px;text-align:left;font-weight:700;">품명</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;">규격</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;">단위</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">수량</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">단가</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">금액</th>
+          <table style="width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px;table-layout:fixed;page-break-inside:avoid;break-inside:avoid;">
+            <colgroup><col style="width:50%;"><col style="width:50%;"></colgroup>
+            <tr>
+              <td style="vertical-align:top;padding-right:6px;">
+                <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+                  <colgroup><col style="width:70px;"><col style="width:auto;"></colgroup>
+                  <tr><td colspan="2" style="background:#0f172a;color:#fff;font-weight:700;font-size:11px;padding:0;"><div style="display:flex;align-items:center;justify-content:center;min-height:28px;">견 적 정 보</div></td></tr>
+                  <tr>
+                    <td style="border:1px solid #cbd5e1;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;font-weight:700;white-space:nowrap;">견적번호</div></td>
+                    <td style="border:1px solid #cbd5e1;font-size:11px;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${currentNo}</div></td>
+                  </tr>
+                  <tr>
+                    <td style="border:1px solid #cbd5e1;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;font-weight:700;white-space:nowrap;">견적일</div></td>
+                    <td style="border:1px solid #cbd5e1;font-size:11px;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${today}</div></td>
+                  </tr>
+                  <tr>
+                    <td style="border:1px solid #cbd5e1;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;font-weight:700;white-space:nowrap;">거래처</div></td>
+                    <td style="border:1px solid #cbd5e1;font-weight:700;font-size:12px;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:12px;font-weight:700;">${client}</div></td>
+                  </tr>
+                  <tr>
+                    <td style="border:1px solid #cbd5e1;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;font-weight:700;white-space:nowrap;">공사명</div></td>
+                    <td style="border:1px solid #cbd5e1;font-size:11px;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${work || '-'}</div></td>
+                  </tr>
+                </table>
+              </td>
+              <td style="vertical-align:top;padding-left:6px;">
+                <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+                  <colgroup><col style="width:56px;"><col style="width:auto;"><col style="width:36px;"><col style="width:auto;"></colgroup>
+                  <tr><td colspan="4" style="background:#0f172a;color:#fff;font-weight:700;font-size:11px;padding:0;"><div style="display:flex;align-items:center;justify-content:center;min-height:28px;">공 급 자</div></td></tr>
+                  <tr>
+                    <td style="border:1px solid #cbd5e1;background:#f8fafc;font-weight:700;font-size:10px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:10px;font-weight:700;white-space:nowrap;">사업자번호</div></td>
+                    <td colspan="3" style="border:1px solid #cbd5e1;padding:5px 10px;font-size:11px;white-space:nowrap;text-align:center;">${SUPPLIER.bizNo}</td>
+                  </tr>
+                  <tr>
+                    <td style="border:1px solid #cbd5e1;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;font-weight:700;white-space:nowrap;">상 호</div></td>
+                    <td style="border:1px solid #cbd5e1;font-size:11px;word-break:keep-all;padding:0"><div style="display:flex;align-items:center;justify-content:center;min-height:28px;padding:5px 10px;font-size:11px;word-break:keep-all;">${SUPPLIER.name}</div></td>
+                    <td style="border:1px solid #cbd5e1;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:center;min-height:28px;padding:5px 4px;font-size:11px;font-weight:700;white-space:nowrap;">성명</div></td>
+                    ${buildSupplierCell()}
+                  </tr>
+                  <tr>
+                    <td style="border:1px solid #cbd5e1;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;font-weight:700;white-space:nowrap;">주 소</div></td>
+                    <td colspan="3" style="border:1px solid #cbd5e1;padding:5px 10px;font-size:10px;word-break:break-all;text-align:center;">${SUPPLIER.addr}</td>
+                  </tr>
+                  <tr>
+                    <td style="border:1px solid #cbd5e1;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;font-weight:700;white-space:nowrap;">업 태</div></td>
+                    <td style="border:1px solid #cbd5e1;font-size:11px;padding:0"><div style="display:flex;align-items:center;justify-content:center;min-height:28px;padding:5px 7px;font-size:11px;">${SUPPLIER.bizType}</div></td>
+                    <td style="border:1px solid #cbd5e1;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:center;min-height:28px;padding:5px 4px;font-size:11px;font-weight:700;white-space:nowrap;">종목</div></td>
+                    <td style="border:1px solid #cbd5e1;font-size:10px;word-break:keep-all;padding:0"><div style="display:flex;align-items:center;justify-content:center;min-height:28px;padding:5px 7px;font-size:10px;word-break:keep-all;">${SUPPLIER.bizItem}</div></td>
+                  </tr>
+                  <tr>
+                    <td style="border:1px solid #cbd5e1;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;font-weight:700;white-space:nowrap;">TEL</div></td>
+                    <td style="border:1px solid #cbd5e1;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:center;min-height:28px;padding:5px 7px;font-size:11px;white-space:nowrap;">${SUPPLIER.tel}</div></td>
+                    <td style="border:1px solid #cbd5e1;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:center;min-height:28px;padding:5px 4px;font-size:11px;font-weight:700;white-space:nowrap;">FAX</div></td>
+                    <td style="border:1px solid #cbd5e1;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:center;min-height:28px;padding:5px 7px;font-size:11px;white-space:nowrap;">${SUPPLIER.fax}</div></td>
+                  </tr>
+                  <tr>
+                    <td colspan="4" style="border:1px solid #cbd5e1;padding:5px 7px;font-size:10px;color:#475569;">M: ${SUPPLIER.mobile} &nbsp; E: ${SUPPLIER.email}</td>
+                  </tr>
+                  <tr>
+                    <td colspan="2" style="border:1px solid #cbd5e1;padding:0;background:#0f172a;color:#fff;font-weight:700;font-size:11px;"><div style="display:flex;align-items:center;justify-content:center;min-height:32px;padding:0 7px;white-space:nowrap;">합 계 금 액</div></td>
+                    <td colspan="2" style="border:1px solid #cbd5e1;padding:5px 7px;font-weight:900;font-size:13px;color:#0f172a;text-align:right;">￦ ${fmt(total)}</td>
+                  </tr>
+                </table>
+              </td>
             </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-
-        <table style="width:100%;border-collapse:collapse;margin-bottom:10px;page-break-inside:avoid;">
-          <tr>
-            <td style="border:1px solid #cbd5e1;padding:7px 10px;background:#f8fafc;font-size:11px;font-weight:700;text-align:center;width:25%;">공급가액</td>
-            <td style="border:1px solid #cbd5e1;padding:7px 10px;font-size:12px;text-align:right;width:25%;">￦ ${fmt(supply)}</td>
-            <td style="border:1px solid #cbd5e1;padding:7px 10px;background:#f8fafc;font-size:11px;font-weight:700;text-align:center;width:25%;">부가세 (10%)</td>
-            <td style="border:1px solid #cbd5e1;padding:7px 10px;font-size:12px;text-align:right;width:25%;">${vatOn ? `￦ ${fmt(vatAmt)}` : '<span style="color:#94a3b8;font-size:11px;">별도</span>'}</td>
-          </tr>
-          <tr>
-            <td colspan="2" style="border:1px solid #cbd5e1;padding:7px 10px;background:#0f172a;color:#fff;font-size:11px;font-weight:700;text-align:center;">합 계 금 액</td>
-            <td colspan="2" style="border:1px solid #cbd5e1;padding:8px 10px;font-size:16px;font-weight:900;text-align:right;color:#0f172a;">
-              ￦ ${fmt(total)} <span style="font-size:11px;font-weight:400;color:#64748b;">${vatOn ? '(VAT 포함)' : '(VAT 별도)'}</span>
-            </td>
-          </tr>
-        </table>
-
-        <div style="padding-top:8px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;text-align:center;margin-bottom:0;">
-          ${SUPPLIER.name} · ${SUPPLIER.tel} · ${SUPPLIER.addr} · 발행일: ${today}
+          </table>
         </div>
-      </div></div>`;
+
+        <!-- BODY: 품목 테이블 (row 단위 break-inside:avoid) -->
+        <table style="width:100%;border-collapse:collapse;margin-bottom:10px;table-layout:fixed;">
+          ${buildTableHeader()}
+          <tbody>${buildRows(items, labors)}</tbody>
+        </table>
+
+        <!-- FOOTER: 합계 + 발행정보 (page-break-inside:avoid로 묶음) -->
+        <div style="page-break-inside:avoid;break-inside:avoid;">
+          ${buildSummaryTable(supply, vatAmt, total, vatOn)}
+          <div style="padding-top:6px;border-top:1px solid #e2e8f0;font-size:9px;color:#94a3b8;text-align:center;">
+            ${SUPPLIER.name} · ${SUPPLIER.tel} · ${SUPPLIER.addr} · 발행일: ${today}
+          </div>
+        </div>
+      </div>`;
+
+    return page1;
   }
 
   function buildStatementHTML(confirmed, extData) {
     const { client, work, vatOn, items, labors, supply, vatAmt, total, today } = extData || getDocData();
-    const rows = buildRows(items, labors);
 
     return `
-      <div style="width:210mm;display:block;box-sizing:border-box;background:#fff;position:relative;margin:0 auto;"><div style="width:190mm;padding:12mm 10mm 8mm 10mm;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:#1e293b;background:#fff;">
+      <div style="${PAGE_STYLE_LAST}">
         ${confirmed ? buildConfirmedBadge() : ''}
-        <div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:3px solid #0f172a;">
-          <div style="font-size:10px;color:#64748b;letter-spacing:3px;margin-bottom:6px;font-weight:700;">한국천막앵글상사</div>
-          <div style="font-size:20px;font-weight:900;letter-spacing:4px;color:#0f172a;">거 래 명 세 서</div>
-        </div>
 
-        <table style="width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px;table-layout:fixed;page-break-inside:avoid;">
-          <colgroup><col style="width:50%;"><col style="width:50%;"></colgroup>
-          <tr>
-            <!-- 공급자 (왼쪽) -->
-            <td style="vertical-align:top;padding-right:6px;">
-              <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
-                <colgroup>
-                  <col style="width:56px;">
-                  <col style="width:auto;">
-                  <col style="width:36px;">
-                  <col style="width:auto;">
-                </colgroup>
-                <tr>
-                  <td colspan="4" style="background:#0f172a;color:#fff;font-weight:700;padding:6px 8px;font-size:11px;text-align:center;height:28px;line-height:1;">공 급 자</td>
-                </tr>
-                <tr style="height:48px;">
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">상 호</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 10px;font-size:11px;word-break:keep-all;text-align:center;">${SUPPLIER.name}</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 4px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;text-align:center;">성명</td>
-                  ${buildSupplierCell()}
-                </tr>
-                <tr style="height:28px;">
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:10px;white-space:nowrap;">사업자번호</td>
-                  <td colspan="3" style="border:1px solid #cbd5e1;padding:5px 10px;font-size:11px;white-space:nowrap;text-align:center;">${SUPPLIER.bizNo}</td>
-                </tr>
-                <tr style="height:28px;">
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">주 소</td>
-                  <td colspan="3" style="border:1px solid #cbd5e1;padding:5px 10px;font-size:10px;word-break:break-all;text-align:center;">${SUPPLIER.addr}</td>
-                </tr>
-                <tr style="height:28px;">
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">TEL</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;white-space:nowrap;text-align:center;">${SUPPLIER.tel}</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 4px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;text-align:center;">FAX</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;white-space:nowrap;text-align:center;">${SUPPLIER.fax}</td>
-                </tr>
-              </table>
-            </td>
+        <!-- HEADER: 제목 + 공급자/공급받는자 테이블 -->
+        <div style="page-break-inside:avoid;break-inside:avoid;margin-bottom:10px;">
+          <div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:3px solid #0f172a;">
+            <div style="font-size:10px;color:#64748b;letter-spacing:3px;margin-bottom:6px;font-weight:700;">한국천막앵글상사</div>
+            <div style="font-size:20px;font-weight:900;letter-spacing:4px;color:#0f172a;">거 래 명 세 서</div>
+          </div>
 
-            <!-- 공급받는자 (오른쪽) -->
-            <td style="vertical-align:top;padding-left:6px;">
-              <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
-                <colgroup><col style="width:70px;"><col style="width:auto;"></colgroup>
-                <tr>
-                  <td colspan="2" style="background:#0f172a;color:#fff;font-weight:700;padding:6px 8px;font-size:11px;text-align:center;height:28px;line-height:1;">공 급 받 는 자</td>
-                </tr>
-                <tr style="height:28px;">
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">거래처</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-weight:700;font-size:12px;">${client}</td>
-                </tr>
-                <tr style="height:28px;">
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">작성일</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${today}</td>
-                </tr>
-                <tr style="height:28px;">
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">문서번호</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${currentNo}</td>
-                </tr>
-                <tr style="height:28px;">
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;">공사명</td>
-                  <td style="border:1px solid #cbd5e1;padding:5px 7px;font-size:11px;">${work || '-'}</td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-
-        <table style="width:100%;border-collapse:collapse;margin-bottom:10px;table-layout:fixed;page-break-inside:auto;">
-          <thead>
-            <tr style="background:#0f172a;color:white;">
-              <th style="padding:8px 8px;font-size:11px;text-align:left;font-weight:700;">품명</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;">규격</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:center;font-weight:700;">단위</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">수량</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">단가</th>
-              <th style="padding:8px 8px;font-size:11px;text-align:right;font-weight:700;">금액</th>
+          <table style="width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px;table-layout:fixed;page-break-inside:avoid;break-inside:avoid;">
+            <colgroup><col style="width:50%;"><col style="width:50%;"></colgroup>
+            <tr>
+              <!-- 공급자 (왼쪽) -->
+              <td style="vertical-align:top;padding-right:6px;">
+                <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+                  <colgroup><col style="width:56px;"><col style="width:auto;"><col style="width:36px;"><col style="width:auto;"></colgroup>
+                  <tr><td colspan="4" style="background:#0f172a;color:#fff;font-weight:700;font-size:11px;padding:0;"><div style="display:flex;align-items:center;justify-content:center;min-height:28px;">공 급 자</div></td></tr>
+                  <tr>
+                    <td style="border:1px solid #cbd5e1;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;font-weight:700;white-space:nowrap;">상 호</div></td>
+                    <td style="border:1px solid #cbd5e1;font-size:11px;word-break:keep-all;padding:0"><div style="display:flex;align-items:center;justify-content:center;min-height:28px;padding:5px 10px;font-size:11px;word-break:keep-all;">${SUPPLIER.name}</div></td>
+                    <td style="border:1px solid #cbd5e1;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:center;min-height:28px;padding:5px 4px;font-size:11px;font-weight:700;white-space:nowrap;">성명</div></td>
+                    ${buildSupplierCell()}
+                  </tr>
+                  <tr>
+                    <td style="border:1px solid #cbd5e1;background:#f8fafc;font-weight:700;font-size:10px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:10px;font-weight:700;white-space:nowrap;">사업자번호</div></td>
+                    <td colspan="3" style="border:1px solid #cbd5e1;padding:5px 10px;font-size:11px;white-space:nowrap;text-align:center;">${SUPPLIER.bizNo}</td>
+                  </tr>
+                  <tr>
+                    <td style="border:1px solid #cbd5e1;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;font-weight:700;white-space:nowrap;">주 소</div></td>
+                    <td colspan="3" style="border:1px solid #cbd5e1;padding:5px 10px;font-size:10px;word-break:break-all;text-align:center;">${SUPPLIER.addr}</td>
+                  </tr>
+                  <tr>
+                    <td style="border:1px solid #cbd5e1;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;font-weight:700;white-space:nowrap;">TEL</div></td>
+                    <td style="border:1px solid #cbd5e1;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:center;min-height:28px;padding:5px 7px;font-size:11px;white-space:nowrap;">${SUPPLIER.tel}</div></td>
+                    <td style="border:1px solid #cbd5e1;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:center;min-height:28px;padding:5px 4px;font-size:11px;font-weight:700;white-space:nowrap;">FAX</div></td>
+                    <td style="border:1px solid #cbd5e1;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:center;min-height:28px;padding:5px 7px;font-size:11px;white-space:nowrap;">${SUPPLIER.fax}</div></td>
+                  </tr>
+                </table>
+              </td>
+              <!-- 공급받는자 (오른쪽) -->
+              <td style="vertical-align:top;padding-left:6px;">
+                <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+                  <colgroup><col style="width:70px;"><col style="width:auto;"></colgroup>
+                  <tr><td colspan="2" style="background:#0f172a;color:#fff;font-weight:700;font-size:11px;padding:0;"><div style="display:flex;align-items:center;justify-content:center;min-height:28px;">공 급 받 는 자</div></td></tr>
+                  <tr>
+                    <td style="border:1px solid #cbd5e1;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;font-weight:700;white-space:nowrap;">거래처</div></td>
+                    <td style="border:1px solid #cbd5e1;font-weight:700;font-size:12px;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:12px;font-weight:700;">${client}</div></td>
+                  </tr>
+                  <tr>
+                    <td style="border:1px solid #cbd5e1;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;font-weight:700;white-space:nowrap;">작성일</div></td>
+                    <td style="border:1px solid #cbd5e1;font-size:11px;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${today}</div></td>
+                  </tr>
+                  <tr>
+                    <td style="border:1px solid #cbd5e1;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;font-weight:700;white-space:nowrap;">문서번호</div></td>
+                    <td style="border:1px solid #cbd5e1;font-size:11px;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${currentNo}</div></td>
+                  </tr>
+                  <tr>
+                    <td style="border:1px solid #cbd5e1;background:#f8fafc;font-weight:700;font-size:11px;white-space:nowrap;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;font-weight:700;white-space:nowrap;">공사명</div></td>
+                    <td style="border:1px solid #cbd5e1;font-size:11px;padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${work || '-'}</div></td>
+                  </tr>
+                </table>
+              </td>
             </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-
-        <table style="width:100%;border-collapse:collapse;margin-bottom:10px;page-break-inside:avoid;">
-          <tr>
-            <td style="border:1px solid #cbd5e1;padding:7px 10px;background:#f8fafc;font-size:11px;font-weight:700;text-align:center;width:25%;">공급가액</td>
-            <td style="border:1px solid #cbd5e1;padding:7px 10px;font-size:12px;text-align:right;width:25%;">￦ ${fmt(supply)}</td>
-            <td style="border:1px solid #cbd5e1;padding:7px 10px;background:#f8fafc;font-size:11px;font-weight:700;text-align:center;width:25%;">부가세 (10%)</td>
-            <td style="border:1px solid #cbd5e1;padding:7px 10px;font-size:12px;text-align:right;width:25%;">${vatOn ? `￦ ${fmt(vatAmt)}` : '<span style="color:#94a3b8;font-size:11px;">별도</span>'}</td>
-          </tr>
-          <tr>
-            <td colspan="2" style="border:1px solid #cbd5e1;padding:7px 10px;background:#0f172a;color:#fff;font-size:11px;font-weight:700;text-align:center;">합 계 금 액</td>
-            <td colspan="2" style="border:1px solid #cbd5e1;padding:8px 10px;font-size:16px;font-weight:900;text-align:right;color:#0f172a;">
-              ￦ ${fmt(total)} <span style="font-size:11px;font-weight:400;color:#64748b;">${vatOn ? '(VAT 포함)' : '(VAT 별도)'}</span>
-            </td>
-          </tr>
-        </table>
-
-        <div style="padding-top:8px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;text-align:center;margin-bottom:0;">
-          ${SUPPLIER.name} · ${SUPPLIER.tel} · ${SUPPLIER.addr} · 작성일: ${today}
+          </table>
         </div>
-      </div></div>`;
+
+        <!-- BODY: 품목 테이블 -->
+        <table style="width:100%;border-collapse:collapse;margin-bottom:10px;table-layout:fixed;">
+          ${buildTableHeader()}
+          <tbody>${buildRows(items, labors)}</tbody>
+        </table>
+
+        <!-- FOOTER: 합계 + 발행정보 -->
+        <div style="page-break-inside:avoid;break-inside:avoid;">
+          ${buildSummaryTable(supply, vatAmt, total, vatOn)}
+          <div style="padding-top:6px;border-top:1px solid #e2e8f0;font-size:9px;color:#94a3b8;text-align:center;">
+            ${SUPPLIER.name} · ${SUPPLIER.tel} · ${SUPPLIER.addr} · 작성일: ${today}
+          </div>
+        </div>
+      </div>`;
   }
 
+
+  // ── 출력 테스트 3케이스 ──
+  const PRINT_TEST_CASES = {
+    items_only: {
+      label: 'Case 1 — 품목만',
+      confirmed: false,
+      vatOn: true,
+      statementOn: false,
+      client: '테스트거래처',
+      work: '테스트공사명',
+      items: [
+        { name: '천막원단',      spec: '120cm',   unit: '야드', qty: 30,  price: 8000,   amt: 240000 },
+        { name: '630앵글',       spec: '6m',      unit: '개',   qty: 10,  price: 15000,  amt: 150000 },
+        { name: '알루미늄레일',  spec: '3m',      unit: '개',   qty: 5,   price: 12000,  amt: 60000  },
+      ],
+      labors: [],
+    },
+    items_and_labor: {
+      label: 'Case 2 — 품목 + 인건비',
+      confirmed: false,
+      vatOn: false,
+      statementOn: false,
+      client: '혼합테스트',
+      work: '철골+천막공사',
+      items: [
+        { name: '이연각파이프 40×40', spec: '6m',  unit: '개',  qty: 20,  price: 18000, amt: 360000 },
+        { name: '천막원단',           spec: '120cm', unit: '야드', qty: 50, price: 8000,  amt: 400000 },
+      ],
+      labors: [
+        { type: '철골제작',     people: 2, days: 3, wage: 200000, amt: 1200000 },
+        { type: '현장설치작업', people: 3, days: 2, wage: 180000, amt: 1080000 },
+      ],
+    },
+    with_statement: {
+      label: 'Case 3 — 견적서+명세서',
+      confirmed: true,
+      vatOn: true,
+      statementOn: true,
+      client: '명세서테스트',
+      work: '어닝 설치공사',
+      items: [
+        { name: '전동어닝',    spec: '4m×2m', unit: '식',  qty: 1, price: 1500000, amt: 1500000 },
+        { name: '물받이',      spec: '3m',    unit: '개',  qty: 2, price: 40000,   amt: 80000   },
+        { name: '알루미늄레일', spec: '3m',   unit: '개',  qty: 4, price: 12000,   amt: 48000   },
+      ],
+      labors: [
+        { type: '현장설치작업', people: 2, days: 1, wage: 180000, amt: 360000 },
+      ],
+    },
+  };
+
+  function runPrintTest(caseKey) {
+    const tc = PRINT_TEST_CASES[caseKey];
+    if (!tc) return;
+    let supply = 0;
+    tc.items.forEach(i => { supply += i.amt; });
+    tc.labors.forEach(l => { supply += l.amt; });
+    const vatAmt = tc.vatOn ? Math.floor(supply * 0.1) : 0;
+    const total  = tc.vatOn ? supply + vatAmt : supply;
+    const today  = new Date().toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric'});
+    const wrapper = buildEstimateWrapper(tc.confirmed, {
+      client: tc.client, work: tc.work,
+      vatOn: tc.vatOn, items: tc.items, labors: tc.labors,
+      supply, vatAmt, total, today
+    }, tc.statementOn);
+    const dateStr = new Date().toISOString().slice(0,10);
+    captureAndSave(wrapper, makeFilename(tc.client + '_테스트', dateStr));
+  }
 
   // ── 모달 ──
   function showToast(m) {
@@ -1591,8 +1753,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
   function doNewEstimate() {
     const banner = document.getElementById('restore-banner');
     if (banner) { banner.remove(); document.body.style.paddingTop = ''; }
-    try { localStorage.removeItem(AUTO_SAVE_KEY); } catch(e) {}
-    resetToNewEstimate();
+    startNewEstimate();
   }
 </script>
 </body>
