@@ -1045,36 +1045,40 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       created_at:      now
     };
     let lineNo = 1;
-    const itemLines = Array.from(document.querySelectorAll('.item-card')).map(c => ({
-      estimate_id:  currentNo,
-      line_no:      lineNo++,
-      line_type:    'item',
-      item_name:    c.querySelector('.item-name').value,
-      quantity:     c.querySelector('.qty').value,
-      unit:         c.querySelector('.unit').value || '',
-      unit2:        c.querySelector('.unit2') ? c.querySelector('.unit2').value : '',
-      unit_price:   c.querySelector('.price').value,
-      total_amount: String(num(c.querySelector('.qty').value) * num(c.querySelector('.price').value))
-    }));
-    const laborLines = Array.from(document.querySelectorAll('.labor-card')).map(c => {
-      const p = num(c.querySelector('.labor-people').value);
-      const d = num(c.querySelector('.labor-days').value);
-      const w = num(c.querySelector('.labor-wage').value);
-      return {
-        estimate_id:  currentNo,
-        line_no:      lineNo++,
-        line_type:    'labor',
-        item_name:    c.querySelector('.labor-type').value,
-        quantity:     String(p * d),
-        unit:         '인',
-        unit_price:   String(w),
-        total_amount: String(p * d * w),
-        labor_people: String(p),
-        labor_days:   String(d),
-        labor_wage:   String(w)
-      };
+    // DOM 추가 순서 그대로 저장 — 자재/인건비 섞여도 순서 보존
+    const allSaveLines = Array.from(document.querySelectorAll('#item-container > .item-card, #item-container > .labor-card')).map(c => {
+      if (c.classList.contains('item-card')) {
+        return {
+          estimate_id:  currentNo,
+          line_no:      lineNo++,
+          line_type:    'item',
+          item_name:    c.querySelector('.item-name').value,
+          quantity:     c.querySelector('.qty').value,
+          unit:         c.querySelector('.unit').value || '',
+          unit2:        c.querySelector('.unit2') ? c.querySelector('.unit2').value : '',
+          unit_price:   c.querySelector('.price').value,
+          total_amount: String(num(c.querySelector('.qty').value) * num(c.querySelector('.price').value))
+        };
+      } else {
+        const p = num(c.querySelector('.labor-people').value);
+        const d = num(c.querySelector('.labor-days').value);
+        const w = num(c.querySelector('.labor-wage').value);
+        return {
+          estimate_id:  currentNo,
+          line_no:      lineNo++,
+          line_type:    'labor',
+          item_name:    c.querySelector('.labor-type').value,
+          quantity:     String(p * d),
+          unit:         '인',
+          unit_price:   String(w),
+          total_amount: String(p * d * w),
+          labor_people: String(p),
+          labor_days:   String(d),
+          labor_wage:   String(w)
+        };
+      }
     });
-    const result = TNS_Storage.save(header, [...itemLines, ...laborLines]);
+    const result = TNS_Storage.save(header, allSaveLines);
     if (result.success) {
       clearAutoSave();
       showToast(status === 'approved' ? '✅ 견적 확정 완료!' : '💾 저장 완료!');
@@ -1285,60 +1289,78 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     const vatOn  = document.getElementById('vat-toggle').checked;
 
     let supply = 0;
-    const items = Array.from(document.querySelectorAll('.item-card')).map(c => {
-      const name = c.querySelector('.item-name').value || '-';
-      const spec = c.querySelector('.unit').value || '';
-      const unit = c.querySelector('.unit2') ? (c.querySelector('.unit2').value || '') : '';
-      const qty  = num(c.querySelector('.qty').value);
-      const price= num(c.querySelector('.price').value);
-      const amt  = qty * price;
-      supply += amt;
-      return { name, spec, unit, qty, price, amt, isLabor: false };
+    // DOM 추가 순서 그대로 — item-card / labor-card 섞여도 순서 보존
+    const allLines = Array.from(document.querySelectorAll('#item-container > .item-card, #item-container > .labor-card')).map(c => {
+      if (c.classList.contains('item-card')) {
+        const name = c.querySelector('.item-name').value || '-';
+        const spec = c.querySelector('.unit').value || '';
+        const unit = c.querySelector('.unit2') ? (c.querySelector('.unit2').value || '') : '';
+        const qty  = num(c.querySelector('.qty').value);
+        const price= num(c.querySelector('.price').value);
+        const amt  = qty * price;
+        supply += amt;
+        return { name, spec, unit, qty, price, amt, isLabor: false };
+      } else {
+        const type   = c.querySelector('.labor-type').value;
+        const people = num(c.querySelector('.labor-people').value);
+        const days   = num(c.querySelector('.labor-days').value);
+        const wage   = num(c.querySelector('.labor-wage').value);
+        const amt    = people * days * wage;
+        supply += amt;
+        return { type, people, days, wage, amt, isLabor: true };
+      }
     });
 
-    const labors = Array.from(document.querySelectorAll('.labor-card')).map(c => {
-      const type   = c.querySelector('.labor-type').value;
-      const people = num(c.querySelector('.labor-people').value);
-      const days   = num(c.querySelector('.labor-days').value);
-      const wage   = num(c.querySelector('.labor-wage').value);
-      const amt    = people * days * wage;
-      supply += amt;
-      return { type, people, days, wage, amt, isLabor: true };
-    });
+    // 하위 호환성 — items/labors 분리도 유지
+    const items  = allLines.filter(l => !l.isLabor);
+    const labors = allLines.filter(l =>  l.isLabor);
 
     const vatAmt = vatOn ? Math.floor(supply * 0.1) : 0;
     const total  = vatOn ? supply + vatAmt : supply;
     const today  = new Date().toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric'});
 
-    return { client, work, vatOn, items, labors, supply, vatAmt, total, today };
+    return { client, work, vatOn, allLines, items, labors, supply, vatAmt, total, today };
   }
 
-  function buildRows(items, labors) {
+  function buildRows(items, labors, allLines) {
+    // allLines(DOM 순서 통합)가 있으면 우선 사용, 없으면 items+labors 순서로 fallback
+    const lines = allLines || [
+      ...(items  || []).map(it => ({ ...it, isLabor: false })),
+      ...(labors || []).map(lb => ({ ...lb, isLabor: true  }))
+    ];
+
     const ROW_STYLE = 'page-break-inside:avoid;break-inside:avoid;';
-    const TD = 'border:1px solid #cbd5e1;padding:0;font-size:11px;';
-    const CELL = (align, bold, content) =>
-      `<div style="display:flex;align-items:center;justify-content:${align};min-height:30px;padding:0 8px;font-size:11px;${bold?'font-weight:700;':''}">${content}</div>`;
-    const itemRows = items.map(it => `
-      <tr style="${ROW_STYLE}">
-        <td style="${TD};padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${CELL('flex-start',false,it.name)}</div></td>
-        <td style="${TD};padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${CELL('center',false,it.spec||'')}</div></td>
-        <td style="${TD};padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${CELL('center',false,it.unit||'')}</div></td>
-        <td style="${TD};padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${CELL('flex-end',false,it.qty)}</div></td>
-        <td style="${TD};padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${CELL('flex-end',false,fmt(it.price))}</div></td>
-        <td style="${TD};padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${CELL('flex-end',true,fmt(it.amt))}</div></td>
-      </tr>`).join('');
+    // text-align 직접 사용 — html2canvas flex 렌더링 오류 방지
+    const td = (align, bold, content, size, extra) =>
+      `<td style="border:1px solid #cbd5e1;padding:6px 8px;font-size:${size||'11px'};vertical-align:middle;text-align:${align};${bold?'font-weight:700;':''}${extra||''};word-break:keep-all;">${content}</td>`;
 
-    const laborRows = (labors || []).map(lb => `
+    return lines.map(line => {
+      if (!line.isLabor) {
+        // 자재/일반 품목
+        const it = line;
+        return `
       <tr style="${ROW_STYLE}">
-        <td style="${TD};padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${CELL('flex-start',false,lb.type)}</div></td>
-        <td style="${TD}"><div style="display:flex;align-items:center;justify-content:center;min-height:30px;padding:0 8px;font-size:10px;">${lb.people}인</div></td>
-        <td style="${TD}"><div style="display:flex;align-items:center;justify-content:center;min-height:30px;padding:0 8px;font-size:10px;">${lb.days}일</div></td>
-        <td style="${TD};padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${CELL('flex-end',false,lb.people * lb.days)}</div></td>
-        <td style="${TD};padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${CELL('flex-end',false,fmt(lb.wage))}</div></td>
-        <td style="${TD};padding:0"><div style="display:flex;align-items:center;justify-content:flex-start;min-height:28px;padding:5px 7px;font-size:11px;">${CELL('flex-end',true,fmt(lb.amt))}</div></td>
-      </tr>`).join('');
-
-    return itemRows + laborRows;
+        ${td('left',   false, it.name)}
+        ${td('center', false, it.spec||'')}
+        ${td('center', false, it.unit||'')}
+        ${td('right',  false, it.qty)}
+        ${td('right',  false, fmt(it.price))}
+        ${td('right',  true,  fmt(it.amt))}
+      </tr>`;
+      } else {
+        // 인건비
+        const lb = line;
+        return `
+      <tr style="${ROW_STYLE}">
+        ${td('left',   false, lb.type)}
+        ${td('center', false, lb.people+'인', '10px')}
+        ${td('center', false, lb.days+'일',   '10px')}
+        ${td('right',  false, lb.people * lb.days)}
+        ${td('right',  false, fmt(lb.wage))}
+        ${td('right',  true,  fmt(lb.amt))}
+      </tr>`;
+      }
+    }).join('');
   }
 
   function buildSupplierCell() {
@@ -1411,12 +1433,12 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     return `
       <thead>
         <tr style="background:#0f172a;color:white;page-break-inside:avoid;break-inside:avoid;">
-          <th style="padding:0;font-weight:700;"><div style="display:flex;align-items:center;justify-content:flex-start;padding:0 8px;font-size:11px;">품명</div></th>
-          <th style="padding:0;font-weight:700;"><div style="display:flex;align-items:center;justify-content:center;min-height:32px;padding:0 8px;font-size:11px;">규격</div></th>
-          <th style="padding:0;font-weight:700;"><div style="display:flex;align-items:center;justify-content:center;min-height:32px;padding:0 8px;font-size:11px;">단위</div></th>
-          <th style="padding:0;font-weight:700;"><div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-size:11px;">수량</div></th>
-          <th style="padding:0;font-weight:700;"><div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-size:11px;">단가</div></th>
-          <th style="padding:0;font-weight:700;"><div style="display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-size:11px;">금액</div></th>
+          <th style="padding:7px 8px;font-size:11px;font-weight:700;text-align:left;">품명</th>
+          <th style="padding:7px 8px;font-size:11px;font-weight:700;text-align:center;">규격</th>
+          <th style="padding:7px 8px;font-size:11px;font-weight:700;text-align:center;">단위</th>
+          <th style="padding:7px 8px;font-size:11px;font-weight:700;text-align:right;">수량</th>
+          <th style="padding:7px 8px;font-size:11px;font-weight:700;text-align:right;">단가</th>
+          <th style="padding:7px 8px;font-size:11px;font-weight:700;text-align:right;">금액</th>
         </tr>
       </thead>`;
   }
@@ -1441,7 +1463,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
   }
 
   function buildEstimateHTML(confirmed, extData) {
-    const { client, work, vatOn, items, labors, supply, vatAmt, total, today } = extData || getDocData();
+    const { client, work, vatOn, allLines, items, labors, supply, vatAmt, total, today } = extData || getDocData();
 
     // ── 1페이지: header + body(품목 전체) + footer ──
     // 콘텐츠 높이에 따라 자동 확장 — overflow:visible 보장
@@ -1528,7 +1550,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
         <!-- BODY: 품목 테이블 (row 단위 break-inside:avoid) -->
         <table style="width:100%;border-collapse:collapse;margin-bottom:10px;table-layout:fixed;">
           ${buildTableHeader()}
-          <tbody>${buildRows(items, labors)}</tbody>
+          <tbody>${buildRows(items, labors, allLines)}</tbody>
         </table>
 
         <!-- FOOTER: 합계 + 발행정보 (page-break-inside:avoid로 묶음) -->
@@ -1544,7 +1566,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
   }
 
   function buildStatementHTML(confirmed, extData) {
-    const { client, work, vatOn, items, labors, supply, vatAmt, total, today } = extData || getDocData();
+    const { client, work, vatOn, allLines, items, labors, supply, vatAmt, total, today } = extData || getDocData();
 
     return `
       <div style="${PAGE_STYLE_LAST}">
@@ -1617,7 +1639,7 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
         <!-- BODY: 품목 테이블 -->
         <table style="width:100%;border-collapse:collapse;margin-bottom:10px;table-layout:fixed;">
           ${buildTableHeader()}
-          <tbody>${buildRows(items, labors)}</tbody>
+          <tbody>${buildRows(items, labors, allLines)}</tbody>
         </table>
 
         <!-- FOOTER: 합계 + 발행정보 -->
@@ -1725,6 +1747,9 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       try { return !!localStorage.getItem(AUTO_SAVE_KEY); } catch(e) { return false; }
     })();
 
+    // 자동저장 유무와 관계없이 항상 빈 품목 1줄 먼저 생성
+    addItem();
+
     if (hasSave) {
       // 선택복구 배너 표시
       const banner = document.createElement('div');
@@ -1739,8 +1764,6 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
       document.body.appendChild(banner);
       // 배너 공간 확보용 body 패딩
       document.body.style.paddingTop = '56px';
-    } else {
-      addItem();
     }
   })();
 
