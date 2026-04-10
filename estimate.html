@@ -39,7 +39,7 @@
     .tab-bar {
       background: #ffffff;
     }
-    .tab-btn { color: #94a3b8; border-color: #e2e8f0 !important; }
+    .tab-btn { background: #94a3b8; color: #ffffff; border-color: #475569 !important; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
     .tab-btn.active { background: #0f172a !important; color: #ffffff !important; border-color: #0f172a !important; }
 
     /* ── 카드 ── */
@@ -87,17 +87,20 @@
     .btn-save {
       background: #0f172a;
       color: #ffffff;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.5);
     }
     .btn-save:active { background: #1e293b; }
     .btn-pdf {
       background: #ea580c;
       color: #ffffff;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.5);
     }
     .btn-pdf:active { background: #c2410c; }
 
     .btn-labor {
       background: #1e40af;
       color: #ffffff;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.5);
     }
     .btn-labor:active { background: #1e3a8a; }
     .labor-card {
@@ -152,8 +155,9 @@
       border: 1px solid #1e3a8a;
     }
     .btn-add {
-      background: #0f172a;
+      background: #1eaf7e;
       color: #ffffff;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.5);
     }
 
     /* ── VAT 토글 ── */
@@ -245,8 +249,8 @@
     <span class="text-[10px] px-2 py-0.5 rounded-full font-bold" style="background:#0f172a;color:#ffffff;">LIVE</span>
   </div>
   <div class="tab-bar flex space-x-2 -mx-4 px-4 pb-3 pt-1">
-    <button class="tab-btn active flex-1 py-2 rounded-lg text-xs font-black border" onclick="switchTab('form')">✏️ 견적 작성</button>
-    <button class="tab-btn flex-1 py-2 rounded-lg text-xs font-black border" onclick="switchTab('records')">📋 저장 기록</button>
+    <button class="tab-btn active flex-1 py-2 rounded-lg text-sm font-black border" onclick="switchTab('form')">✏️ 견적 작성</button>
+    <button class="tab-btn flex-1 py-2 rounded-lg text-sm font-black border" onclick="switchTab('records')">📋 저장 기록</button>
   </div>
 </header>
 
@@ -295,10 +299,10 @@
       </div>
     </div>
     <div class="grid grid-cols-2 gap-2">
-      <button onclick="addItem()" class="btn-add py-3 rounded-xl font-black text-[11px] shadow-md">+ 품목 추가</button>
-      <button onclick="addLaborItem()" class="btn-labor py-3 rounded-xl font-black text-[11px] shadow-md">+ 인건비 추가</button>
-      <button onclick="saveEstimate('draft')" class="btn-save py-3 rounded-xl font-black text-[11px] shadow-md">저장</button>
-      <button onclick="sendEstimate()" class="btn-pdf py-3 rounded-xl font-black text-[11px] shadow-md">견적서 이미지 저장</button>
+      <button onclick="addItem()" class="btn-add py-3 rounded-xl font-black text-[13px] shadow-md">+ 품목 추가</button>
+      <button onclick="addLaborItem()" class="btn-labor py-3 rounded-xl font-black text-[13px] shadow-md">+ 인건비 추가</button>
+      <button onclick="saveEstimate('draft')" class="btn-save py-3 rounded-xl font-black text-[13px] shadow-md">저장</button>
+      <button onclick="sendEstimate()" class="btn-pdf py-3 rounded-xl font-black text-[13px] shadow-md">견적서 이미지 저장</button>
     </div>
   </footer>
 </div>
@@ -650,9 +654,13 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
         <input type="text" placeholder="규격" class="unit border rounded-lg p-2 text-xs">
         <input type="text" placeholder="단위 (m/개/식...)" class="unit2 border rounded-lg p-2 text-xs">
       </div>
-      <div class="grid grid-cols-2 gap-2">
+      <div class="grid grid-cols-2 gap-2 mb-2">
         <input type="text" placeholder="수량" value="1" inputmode="decimal" class="qty border rounded-lg p-2 text-right text-sm">
         <input type="text" placeholder="단가" inputmode="numeric" class="price border rounded-lg p-2 text-right text-sm font-bold">
+      </div>
+      <div class="flex justify-end items-center gap-1 pt-1 border-t border-slate-200">
+        <span class="text-xs text-slate-400 font-bold">합계</span>
+        <span class="line-total text-sm font-black text-blue-700">0원</span>
       </div>
     `;
 
@@ -1012,7 +1020,10 @@ const STAMP_B64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeUAAAHlCAYAAAD
     document.querySelectorAll('.item-card').forEach(card => {
       const q = num(card.querySelector('.qty').value);
       const p = num(card.querySelector('.price').value);
-      supply += (q * p);
+      const lineAmt = q * p;
+      supply += lineAmt;
+      const lt = card.querySelector('.line-total');
+      if (lt) lt.innerText = lineAmt ? fmt(lineAmt) + '원' : '0원';
     });
     document.querySelectorAll('.labor-card').forEach(card => {
       const p = num(card.querySelector('.labor-people').value);
