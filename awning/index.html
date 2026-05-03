@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>어닝 계산기 v2</title>
+  <title>어닝 견적 계산기 v2</title>
   <style>
     :root {
       --bg: #0B1220;
@@ -14,6 +14,10 @@
       --muted: #9CA3AF;
       --accent: #F97316;
       --input-bg: #020617;
+      --quote-text: #111827;
+      --quote-muted: #6B7280;
+      --quote-line: #E5E7EB;
+      --quote-soft: #F8FAFC;
     }
     * { box-sizing: border-box; }
     body {
@@ -39,6 +43,7 @@
       line-height: 1.2;
       margin: 0;
       color: var(--text);
+      letter-spacing: 0;
     }
     .sub {
       margin-top: 8px;
@@ -49,7 +54,7 @@
     .card {
       background: var(--card);
       border: 1px solid var(--line);
-      border-radius: 16px;
+      border-radius: 8px;
       padding: 18px;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
       margin-bottom: 14px;
@@ -73,7 +78,7 @@
     input, select {
       width: 100%;
       border: 1px solid var(--line);
-      border-radius: 12px;
+      border-radius: 8px;
       padding: 12px 14px;
       font-size: 16px;
       color: var(--text);
@@ -93,7 +98,7 @@
       gap: 10px;
       padding: 12px 14px;
       border: 1px solid var(--line);
-      border-radius: 12px;
+      border-radius: 8px;
       min-height: 48px;
       background: var(--input-bg);
       cursor: pointer;
@@ -106,66 +111,143 @@
     }
     .check span { color: var(--text); }
 
-    /* 결과 카드 */
-    .result {
-      border: 2px solid var(--accent);
-      background: var(--card);
+    .quote {
+      background: #fff;
+      color: var(--quote-text);
+      border: 1px solid var(--quote-line);
+      border-radius: 8px;
+      box-shadow: 0 12px 34px rgba(15, 23, 42, 0.24);
     }
-    .result-top {
+    .quote-head {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 8px;
+      align-items: flex-start;
+      gap: 14px;
+      padding-bottom: 14px;
+      border-bottom: 2px solid var(--quote-text);
     }
-    .badge {
-      background: var(--accent);
-      color: #fff;
-      font-size: 11px;
+    .quote-title {
+      margin: 0;
+      color: var(--quote-text);
+      font-size: 25px;
       font-weight: 900;
-      padding: 6px 10px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+    .quote-meta {
+      margin-top: 7px;
+      color: var(--quote-muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .quote-tag {
+      color: #fff;
+      background: var(--accent);
       border-radius: 999px;
+      padding: 7px 11px;
+      font-size: 12px;
+      font-weight: 900;
       white-space: nowrap;
     }
-    .result-label {
-      font-size: 13px;
-      color: var(--muted);
-      font-weight: 800;
-    }
-    .result-price {
-      font-size: 40px;
-      font-weight: 900;
-      line-height: 1.1;
-      margin: 2px 0 8px;
-      color: var(--accent);
-    }
-
-    /* 미니 그리드 */
-    .mini-grid {
+    .summary-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(3, 1fr);
       gap: 10px;
-      margin-top: 14px;
+      margin: 16px 0;
     }
-    .mini {
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 12px;
-      background: var(--card-2);
+    .summary-item {
+      background: var(--quote-soft);
+      border: 1px solid var(--quote-line);
+      border-radius: 8px;
+      padding: 10px;
+      min-width: 0;
     }
-    .mini .k {
-      color: var(--muted);
+    .summary-item .k {
+      color: var(--quote-muted);
       font-size: 12px;
-      font-weight: 700;
+      font-weight: 800;
       margin-bottom: 4px;
     }
-    .mini .v {
-      font-size: 18px;
+    .summary-item .v {
+      color: var(--quote-text);
+      font-size: 17px;
       font-weight: 900;
-      color: var(--accent);
+      overflow-wrap: anywhere;
     }
-
-    /* 계산 라인 */
+    .quote-lines {
+      display: flex;
+      flex-direction: column;
+      border-top: 1px solid var(--quote-line);
+      border-bottom: 1px solid var(--quote-line);
+    }
+    .quote-line {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--quote-line);
+      font-size: 15px;
+    }
+    .quote-line:last-child { border-bottom: 0; }
+    .quote-line .name {
+      color: var(--quote-text);
+      font-weight: 800;
+      line-height: 1.45;
+    }
+    .quote-line .amount {
+      color: var(--quote-text);
+      font-weight: 900;
+      text-align: right;
+      white-space: nowrap;
+    }
+    .quote-line .subtext {
+      display: block;
+      margin-top: 2px;
+      color: var(--quote-muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .total-box {
+      margin-top: 18px;
+      padding: 16px;
+      background: #FFF7ED;
+      border: 1px solid #FED7AA;
+      border-radius: 8px;
+      text-align: right;
+    }
+    .total-label {
+      color: #9A3412;
+      font-size: 14px;
+      font-weight: 900;
+      margin-bottom: 4px;
+    }
+    .total-price {
+      color: #EA580C;
+      font-size: 38px;
+      font-weight: 900;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+    .quote-notes {
+      margin-top: 14px;
+      color: var(--quote-muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .quote-notes p {
+      margin: 4px 0 0;
+    }
+    .internal {
+      color: var(--text);
+    }
+    details.internal summary {
+      cursor: pointer;
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 900;
+      list-style-position: inside;
+    }
     .calc-lines {
       margin-top: 14px;
       padding-top: 14px;
@@ -184,45 +266,44 @@
     .line strong {
       font-weight: 900;
       color: var(--text);
-    }
-    .line:last-child strong { color: var(--accent); }
-
-    /* 경고/안내 */
-    .warn {
-      margin-top: 12px;
-      font-size: 12px;
-      color: #fbbf24;
-      background: rgba(251, 191, 36, 0.08);
-      border: 1px solid rgba(251, 191, 36, 0.25);
-      border-radius: 12px;
-      padding: 10px 12px;
-      line-height: 1.5;
+      text-align: right;
     }
     .footer-note {
-      margin-top: 8px;
+      margin-top: 12px;
       color: var(--muted);
       font-size: 12px;
       line-height: 1.6;
     }
 
     @media (max-width: 640px) {
-      .grid, .mini-grid { grid-template-columns: 1fr; }
-      .result-price { font-size: 34px; }
+      .grid, .summary-grid { grid-template-columns: 1fr; }
+      .quote-head {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .quote-tag { align-self: flex-start; }
+      .quote-line {
+        grid-template-columns: 1fr;
+        gap: 5px;
+      }
+      .quote-line .amount { text-align: left; }
+      .total-box { text-align: left; }
+      .total-price { font-size: 32px; }
     }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="header">
-      <div class="eyebrow">TNS v1.2 준수 · 숨고 대응용</div>
+      <div class="eyebrow">TNS v1.3 견적 옵션 적용</div>
       <h1>어닝 견적 계산기 v2</h1>
-      <div class="sub">가로(mm), 돌출, 물받이 여부만 입력하면 즉시 견적 금액이 계산된다.</div>
+      <div class="sub">가로(mm), 돌출, 수량, 옵션을 입력하면 고객 안내용 견적 금액이 계산됩니다.</div>
     </div>
 
     <section class="card">
       <div class="grid">
         <div class="field">
-          <label for="widthMm">가로 (mm)</label>
+          <label for="widthMm">가로(mm)</label>
           <input id="widthMm" type="number" inputmode="numeric" min="0" step="1" placeholder="예: 4500" value="4500" />
         </div>
 
@@ -236,8 +317,31 @@
           </select>
         </div>
 
-        <div class="field full">
-          <label>옵션</label>
+        <div class="field">
+          <label for="quantity">수량</label>
+          <input id="quantity" type="number" inputmode="numeric" min="1" step="1" value="1" />
+        </div>
+
+        <div class="field">
+          <label for="motorOption">모터</label>
+          <select id="motorOption">
+            <option value="none">없음</option>
+            <option value="basic">기본 모터 (+350,000원)</option>
+            <option value="large">큰 모터 (+450,000원)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="printOption">인쇄</label>
+          <select id="printOption">
+            <option value="none">없음</option>
+            <option value="simple">간단 글자/전화번호 1도 (+60,000원)</option>
+            <option value="consult">2도 이상 / 그림 / 긴 문장 (상담 필요)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>물받이</label>
           <label class="check" for="waterGuard">
             <input id="waterGuard" type="checkbox" />
             <span>물받이 포함</span>
@@ -246,81 +350,186 @@
       </div>
     </section>
 
-    <section class="card result">
-      <div class="result-top">
+    <section id="captureQuote" class="card quote">
+      <div class="quote-head">
         <div>
-          <div class="result-label">최종 견적 금액</div>
-          <div id="finalPrice" class="result-price">788,000원</div>
+          <h2 class="quote-title">어닝 견적 안내</h2>
+          <div class="quote-meta">입력하신 기준으로 산출한 안내 견적입니다.</div>
         </div>
-        <div class="badge">즉시 계산</div>
+        <div class="quote-tag">견적 안내</div>
       </div>
 
-      <div class="mini-grid">
-        <div class="mini">
-          <div class="k">가로 환산</div>
-          <div id="widthMeters" class="v">4.5m</div>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <div class="k">가로</div>
+          <div id="quoteWidth" class="v">4,500mm</div>
         </div>
-        <div class="mini">
-          <div class="k">적용 단가</div>
-          <div id="unitPrice" class="v">175,000원</div>
+        <div class="summary-item">
+          <div class="k">돌출</div>
+          <div id="quoteProjection" class="v">2.0m</div>
+        </div>
+        <div class="summary-item">
+          <div class="k">수량</div>
+          <div id="quoteQuantity" class="v">1조</div>
         </div>
       </div>
 
-      <div class="calc-lines">
-        <div class="line"><span>기본금액</span><strong id="baseAmount">787,500원</strong></div>
-        <div class="line"><span>1000원 단위 올림</span><strong id="roundedBase">788,000원</strong></div>
-        <div class="line"><span>물받이</span><strong id="waterGuardAmount">0원</strong></div>
-        <div class="line"><span>최종합계</span><strong id="finalAmountLine">788,000원</strong></div>
+      <div class="quote-lines">
+        <div class="quote-line">
+          <div class="name">기본 어닝<span id="baseDetail" class="subtext">788,000원 × 1조</span></div>
+          <div id="baseTotal" class="amount">788,000원</div>
+        </div>
+        <div class="quote-line">
+          <div class="name">물받이<span id="gutterDetail" class="subtext">미포함</span></div>
+          <div id="gutterTotal" class="amount">0원</div>
+        </div>
+        <div class="quote-line">
+          <div class="name">모터<span id="motorDetail" class="subtext">없음</span></div>
+          <div id="motorTotal" class="amount">0원</div>
+        </div>
+        <div class="quote-line">
+          <div class="name">인쇄<span id="printDetail" class="subtext">없음</span></div>
+          <div id="printTotal" class="amount">0원</div>
+        </div>
       </div>
 
-      <div class="warn">
-        계산 규칙: 가로(mm)를 m로 변환 → 돌출 단가 적용 → 기본금액 계산 → 기본금액만 1000원 단위 올림 → 물받이 옵션 추가.
+      <div class="total-box">
+        <div class="total-label">최종 견적 금액</div>
+        <div id="finalPrice" class="total-price">788,000원</div>
       </div>
-      <div class="footer-note">
-        단가표: 1.5m = 165,000원 / 2.0m = 175,000원 / 2.5m = 185,000원 / 3.0m = 210,000원<br />
-        물받이: 3m당 40,000원, 개수는 올림 처리
+
+      <div class="quote-notes">
+        <p id="consultNote" hidden>※ 인쇄비 별도 상담 필요</p>
+        <p>※ 2도 이상 인쇄, 그림, 긴 문장은 상담 후 정확한 금액이 안내됩니다.</p>
+        <p>※ 현장 상황에 따라 최종 금액은 변동될 수 있습니다.</p>
       </div>
     </section>
+
+    <details class="card internal">
+      <summary>상세 계산 보기</summary>
+      <div class="calc-lines">
+        <div class="line"><span>가로 환산</span><strong id="widthMeters">4.5m</strong></div>
+        <div class="line"><span>적용 단가</span><strong id="unitPrice">175,000원</strong></div>
+        <div class="line"><span>기본금액</span><strong id="baseAmount">787,500원</strong></div>
+        <div class="line"><span>1000원 단위 올림</span><strong id="roundedBase">788,000원</strong></div>
+        <div class="line"><span>물받이 단가</span><strong id="gutterUnit">0원</strong></div>
+        <div class="line"><span>모터 단가</span><strong id="motorUnit">0원</strong></div>
+        <div class="line"><span>인쇄비</span><strong id="printAmount">0원</strong></div>
+        <div class="line"><span>최종합계</span><strong id="finalAmountLine">788,000원</strong></div>
+      </div>
+      <div class="footer-note">
+        단가표: 1.5m = 160,000원 / 2.0m = 175,000원 / 2.5m = 185,000원 / 3.0m = 210,000원<br />
+        물받이: 3000mm까지 40,000원, 3000mm 초과분은 길이 비례 추가 후 1000원 단위 반올림<br />
+        인쇄: 1도 인쇄비는 견적 1건 기준 60,000원이며 수량별 곱셈을 적용하지 않음
+      </div>
+    </details>
   </div>
 
   <script>
     const priceTable = {
-      "1.5": 165000,
+      "1.5": 160000,
       "2.0": 175000,
       "2.5": 185000,
       "3.0": 210000,
     };
 
+    const motorOptions = {
+      none: { label: "없음", price: 0 },
+      basic: { label: "기본 모터", price: 350000 },
+      large: { label: "큰 모터", price: 450000 },
+    };
+
+    const printOptions = {
+      none: { label: "없음", price: 0, needsConsult: false },
+      simple: { label: "간단 글자/전화번호 1도", price: 60000, needsConsult: false },
+      consult: { label: "2도 이상 / 그림 / 긴 문장", price: 0, needsConsult: true },
+    };
+
     const $ = (id) => document.getElementById(id);
     const fmt = (n) => new Intl.NumberFormat("ko-KR").format(Number(n) || 0);
+    const money = (n) => `${fmt(n)}원`;
     const ceil1000 = (n) => Math.ceil((Number(n) || 0) / 1000) * 1000;
+    const round1000 = (n) => Math.round((Number(n) || 0) / 1000) * 1000;
+
+    function getQuantity() {
+      return Math.max(1, Math.floor(Number($("quantity").value) || 1));
+    }
+
+    function getPrintPrice(printOption) {
+      return printOption.price;
+    }
+
+    function getGutterPrice(widthMm) {
+      if (widthMm <= 0) return 0;
+      const rawPrice = widthMm <= 3000
+        ? 40000
+        : 40000 + ((widthMm - 3000) * (40000 / 3000));
+      return round1000(rawPrice);
+    }
 
     function calculate() {
-      const widthMm = Number($("widthMm").value || 0);
+      const widthMm = Math.max(0, Number($("widthMm").value || 0));
       const widthM = widthMm / 1000;
+      const quantity = getQuantity();
       const projection = $("projection").value;
       const unitPrice = priceTable[projection] || 0;
       const baseAmount = widthM * unitPrice;
       const roundedBase = ceil1000(baseAmount);
 
-      const waterGuardChecked = $("waterGuard").checked;
-      const waterGuardCount = waterGuardChecked ? Math.ceil(widthM / 3) : 0;
-      const waterGuardAmount = waterGuardCount * 40000;
+      const gutterChecked = $("waterGuard").checked;
+      const gutterUnit = gutterChecked ? getGutterPrice(widthMm) : 0;
+      const selectedMotor = motorOptions[$("motorOption").value] || motorOptions.none;
+      const selectedPrint = printOptions[$("printOption").value] || printOptions.none;
+      const printAmount = getPrintPrice(selectedPrint);
 
-      const finalAmount = roundedBase + waterGuardAmount;
+      const baseTotal = roundedBase * quantity;
+      const gutterTotal = gutterUnit * quantity;
+      const motorTotal = selectedMotor.price * quantity;
+      const finalAmount = baseTotal + gutterTotal + motorTotal + printAmount;
+
+      $("quoteWidth").textContent = `${fmt(widthMm)}mm`;
+      $("quoteProjection").textContent = `${projection}m`;
+      $("quoteQuantity").textContent = `${quantity}조`;
+
+      $("baseDetail").textContent = `${money(roundedBase)} × ${quantity}조`;
+      $("baseTotal").textContent = money(baseTotal);
+
+      $("gutterDetail").textContent = gutterChecked ? `${money(gutterUnit)} × ${quantity}조` : "미포함";
+      $("gutterTotal").textContent = money(gutterTotal);
+
+      $("motorDetail").textContent = selectedMotor.price > 0
+        ? `${selectedMotor.label} ${money(selectedMotor.price)} × ${quantity}조`
+        : "없음";
+      $("motorTotal").textContent = money(motorTotal);
+
+      $("printDetail").textContent = selectedPrint.needsConsult
+        ? `${selectedPrint.label} 상담 필요`
+        : selectedPrint.price > 0
+          ? `${selectedPrint.label} ${money(printAmount)}`
+          : "없음";
+      $("printTotal").textContent = selectedPrint.needsConsult ? "상담 필요" : money(printAmount);
+      $("consultNote").hidden = !selectedPrint.needsConsult;
+
+      $("finalPrice").textContent = money(finalAmount);
 
       $("widthMeters").textContent = `${widthM % 1 === 0 ? widthM.toFixed(0) : widthM.toFixed(1)}m`;
-      $("unitPrice").textContent = `${fmt(unitPrice)}원`;
-      $("baseAmount").textContent = `${fmt(baseAmount)}원`;
-      $("roundedBase").textContent = `${fmt(roundedBase)}원`;
-      $("waterGuardAmount").textContent = `${fmt(waterGuardAmount)}원`;
-      $("finalPrice").textContent = `${fmt(finalAmount)}원`;
-      $("finalAmountLine").textContent = `${fmt(finalAmount)}원`;
+      $("unitPrice").textContent = money(unitPrice);
+      $("baseAmount").textContent = money(baseAmount);
+      $("roundedBase").textContent = money(roundedBase);
+      $("gutterUnit").textContent = money(gutterUnit);
+      $("motorUnit").textContent = money(selectedMotor.price);
+      $("printAmount").textContent = selectedPrint.needsConsult ? "상담 필요" : money(printAmount);
+      $("finalAmountLine").textContent = money(finalAmount);
     }
 
-    ["widthMm", "projection", "waterGuard"].forEach((id) => {
+    ["widthMm", "projection", "quantity", "waterGuard", "motorOption", "printOption"].forEach((id) => {
       $(id).addEventListener("input", calculate);
       $(id).addEventListener("change", calculate);
+    });
+
+    $("quantity").addEventListener("blur", () => {
+      $("quantity").value = getQuantity();
+      calculate();
     });
 
     calculate();
