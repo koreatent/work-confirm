@@ -464,7 +464,7 @@
       const rawPrice = widthMm <= 3000
         ? 40000
         : 40000 + ((widthMm - 3000) * (40000 / 3000));
-      return round1000(rawPrice);
+      return ceil1000(rawPrice);
     }
 
     function calculate() {
