@@ -117,6 +117,9 @@
       border: 1px solid var(--quote-line);
       border-radius: 8px;
       box-shadow: 0 12px 34px rgba(15, 23, 42, 0.24);
+      max-width: 430px;
+      margin-left: auto;
+      margin-right: auto;
     }
     .quote-head {
       display: flex;
@@ -276,19 +279,89 @@
     }
 
     @media (max-width: 640px) {
-      .grid, .summary-grid { grid-template-columns: 1fr; }
+      .grid { grid-template-columns: 1fr; }
+      .quote {
+        padding: 14px;
+      }
       .quote-head {
-        flex-direction: column;
-        align-items: stretch;
+        align-items: center;
+        gap: 8px;
+        padding-bottom: 10px;
       }
-      .quote-tag { align-self: flex-start; }
+      .quote-title {
+        font-size: 22px;
+      }
+      .quote-meta {
+        margin-top: 3px;
+        font-size: 12px;
+        line-height: 1.35;
+      }
+      .quote-tag {
+        padding: 5px 8px;
+        font-size: 11px;
+      }
+      .summary-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+        margin: 10px 0;
+        min-width: 0;
+      }
+      .summary-item {
+        padding: 7px;
+        min-height: 58px;
+      }
+      .summary-item .k {
+        font-size: 11px;
+        margin-bottom: 2px;
+      }
+      .summary-item .v {
+        font-size: 15px;
+      }
       .quote-line {
-        grid-template-columns: 1fr;
-        gap: 5px;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        padding: 8px 0;
+        font-size: 14px;
       }
-      .quote-line .amount { text-align: left; }
-      .total-box { text-align: left; }
-      .total-price { font-size: 32px; }
+      .quote-line.is-empty {
+        padding: 6px 0;
+      }
+      .quote-line.is-empty .name {
+        color: var(--quote-muted);
+        font-weight: 800;
+      }
+      .quote-line.is-empty .subtext {
+        display: inline;
+        margin: 0 0 0 5px;
+      }
+      .quote-line .amount {
+        text-align: right;
+      }
+      .quote-line .subtext {
+        font-size: 11px;
+        line-height: 1.3;
+      }
+      .total-box {
+        margin-top: 10px;
+        padding: 11px 12px;
+        text-align: right;
+      }
+      .total-label {
+        font-size: 12px;
+        margin-bottom: 2px;
+      }
+      .total-price {
+        font-size: 27px;
+        white-space: nowrap;
+      }
+      .quote-notes {
+        margin-top: 9px;
+        font-size: 11px;
+        line-height: 1.35;
+      }
+      .quote-notes p {
+        margin-top: 2px;
+      }
     }
   </style>
 </head>
@@ -400,7 +473,7 @@
 
       <div class="quote-notes">
         <p id="consultNote" hidden>※ 인쇄비 별도 상담 필요</p>
-        <p>※ 2도 이상 인쇄, 그림, 긴 문장은 상담 후 정확한 금액이 안내됩니다.</p>
+        <p id="printNotice">※ 2도 이상 인쇄/그림/긴 문장은 상담 후 안내됩니다.</p>
         <p>※ 현장 상황에 따라 최종 금액은 변동될 수 있습니다.</p>
       </div>
     </section>
@@ -496,11 +569,13 @@
 
       $("gutterDetail").textContent = gutterChecked ? `${money(gutterUnit)} × ${quantity}조` : "미포함";
       $("gutterTotal").textContent = money(gutterTotal);
+      $("gutterTotal").closest(".quote-line").classList.toggle("is-empty", gutterTotal === 0);
 
       $("motorDetail").textContent = selectedMotor.price > 0
         ? `${selectedMotor.label} ${money(selectedMotor.price)} × ${quantity}조`
         : "없음";
       $("motorTotal").textContent = money(motorTotal);
+      $("motorTotal").closest(".quote-line").classList.toggle("is-empty", motorTotal === 0);
 
       $("printDetail").textContent = selectedPrint.needsConsult
         ? `${selectedPrint.label} 상담 필요`
@@ -508,7 +583,9 @@
           ? `${selectedPrint.label} ${money(printAmount)}`
           : "없음";
       $("printTotal").textContent = selectedPrint.needsConsult ? "상담 필요" : money(printAmount);
+      $("printTotal").closest(".quote-line").classList.toggle("is-empty", !selectedPrint.needsConsult && printAmount === 0);
       $("consultNote").hidden = !selectedPrint.needsConsult;
+      $("printNotice").hidden = selectedPrint.needsConsult;
 
       $("finalPrice").textContent = money(finalAmount);
 
